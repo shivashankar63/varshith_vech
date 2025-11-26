@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>User Dashboard • Smart Bus</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .wrap{display:grid;grid-template-columns:360px 1fr;gap:12px;padding:12px;height:calc(100vh - 60px)}
+    header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border)}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:auto}
+    .map{height:450px;min-height:360px;border-radius:12px;overflow:hidden}
+    .route-card{background:#0b1220;border:1px solid var(--border);border-radius:8px;padding:12px;margin:8px 0;cursor:pointer;transition:all .2s}
+    .route-card:hover{border-color:#3b82f6;background:#0f1520}
+    .route-card.active{border-color:#22c55e;background:#0f1820}
+    .bus-card{background:#0b1220;border:1px solid var(--border);border-radius:8px;padding:10px;margin:6px 0}
+    .eta-badge{display:inline-block;padding:4px 8px;background:#22c55e;color:white;border-radius:6px;font-size:12px;font-weight:600}
+    .section-title{font-size:13px;color:var(--muted);margin:12px 0 6px;font-weight:600;text-transform:uppercase}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_URL = "https://xeibdoqrxpqgdwuackfc.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlaWJkb3FyeHBxZ2R3dWFja2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNzYyNTAsImV4cCI6MjA3OTc1MjI1MH0.J3b3xaAa532E03mUYHjFabBhd7kwNvoLkoSQJ0CX04k";
+  </script>
+  <script src="../assets/supabaseClient.js"></script>
+  
+</head>
+<body>
+  <header>
+    <strong>User Dashboard</strong>
+    <nav style="display:flex;gap:8px">
+      <a class="btn" href="../tracker.html">Live Map</a>
+      <a class="btn" href="../index.html">Home</a>
+      <button class="btn" id="btnLogout">Logout</button>
+    </nav>
+  </header>
+
+  <div class="wrap">
+    <aside class="panel">
+      <h3 style="margin-top:0;font-size:16px">👋 Welcome, <span id="userName"></span></h3>
+      <div id="userInfo" style="font-size:12px;color:var(--muted);margin-bottom:12px"></div>
+
+      <div class="section-title">📍 Track Bus by Route</div>
+      <div id="routesList"></div>
+
+      <div class="section-title">🚍 Select Bus</div>
+      <div id="busesList"></div>
+
+      <div class="section-title">🗺️ Journey Planner</div>
+      <div class="card" style="margin-top:6px">
+        <div class="field" style="margin-bottom:8px">
+          <label style="font-size:12px;color:var(--muted)">From</label>
+          <select id="fromStop" style="width:100%;padding:8px;background:#0b1220;border:1px solid var(--border);border-radius:6px;color:var(--text)">
+            <option value="">Select starting point</option>
+          </select>
+        </div>
+        <div class="field">
+          <label style="font-size:12px;color:var(--muted)">To</label>
+          <select id="toStop" style="width:100%;padding:8px;background:#0b1220;border:1px solid var(--border);border-radius:6px;color:var(--text)">
+            <option value="">Select destination</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="btnPlanJourney" style="width:100%;margin-top:8px">Get Route & ETA</button>
+      </div>
+
+      <div id="journeyResult" style="display:none;margin-top:12px"></div>
+
+      <div class="section-title">🔔 Notifications</div>
+      <div class="card" style="margin-top:6px;font-size:13px">
+        <label class="toggle" style="margin-bottom:6px">
+          <input type="checkbox" id="notifyDelay" checked />
+          <span>Bus Delay Alerts</span>
+        </label>
+        <label class="toggle" style="margin-bottom:6px">
+          <input type="checkbox" id="notifyEmergency" checked />
+          <span>Emergency Alerts</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="notifyETA" />
+          <span>ETA Updates (10 min before)</span>
+        </label>
+      </div>
+    </aside>
+    
+    <main class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0;font-size:16px">🧰 User Tools</h3>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="btnRefresh">🔄 Refresh</button>
+          <button class="btn" id="btnLocateMe">📍 My Location</button>
+          <button class="btn btn-primary" id="btnOpenMap">🗺️ Open Live Map</button>
+        </div>
+      </div>
+      <div class="main-grid" style="display:grid;grid-template-columns:1fr;gap:12px">
+        <div>
+          <div class="section-title">🚍 Selected Bus</div>
+          <div id="selectedBusInfo" class="card" style="display:none;padding:12px">
+            <h4 style="margin:0 0 8px;font-size:14px" id="infoBusName"></h4>
+            <div style="font-size:12px">
+              <div style="margin:4px 0"><strong>Route:</strong> <span id="infoRoute"></span></div>
+              <div style="margin:4px 0"><strong>Speed:</strong> <span id="infoSpeed"></span> km/h</div>
+              <div style="margin:4px 0"><strong>Next Stop:</strong> <span id="infoNextStop"></span></div>
+              <div style="margin:4px 0"><strong>ETA:</strong> <span class="eta-badge" id="infoETA"></span></div>
+            </div>
+          </div>
+
+          <div class="section-title">🧭 Journey Details</div>
+          <div id="journeyResult" class="card" style="display:none;padding:12px"></div>
+
+          <div class="section-title">📍 Your Location</div>
+          <div class="card" style="padding:12px">
+            <div id="userLocationText" style="font-size:13px;color:var(--muted)">Not determined yet</div>
+          </div>
+
+          <div class="section-title">🔔 Status</div>
+          <div class="card" style="padding:12px">
+            <div style="font-size:13px;color:var(--muted)">No active alerts</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/auth.js"></script>
+  <script>
+    const session = Auth.requireRole('user');
+    document.getElementById('btnLogout').onclick = () => { Auth.clear(); location.href = '../auth/login-user.html'; };
+    document.getElementById('userName').textContent = session.fullName || session.userId;
+    document.getElementById('userInfo').textContent = `${session.userType === 'faculty' ? 'Faculty' : 'Student'} • ${session.userId} • ${session.email}`;
+
+    let routes, selectedRoute = null, selectedBus = null;
+
+    // Load route data (prefer Supabase)
+    (async () => {
+      try {
+        if(window.SB && typeof SB.getRoutesWithDetails === 'function'){
+          routes = await SB.getRoutesWithDetails();
+        } else {
+          const res = await fetch('../assets/data/routes.json');
+          const data = await res.json();
+          routes = data.routes;
+        }
+        renderRoutes();
+        renderStops();
+      } catch (e){ console.error('Failed to load routes', e); }
+    })();
+
+    function renderRoutes(){
+      const list = document.getElementById('routesList');
+      list.innerHTML = routes.map(r => `
+        <div class="route-card" data-route="${r.id}">
+          <strong style="font-size:14px">${r.name}</strong>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${r.stops.length} stops • ${r.buses.length} buses</div>
+        </div>
+      `).join('');
+      
+      list.querySelectorAll('.route-card').forEach(card => {
+        card.onclick = () => {
+          list.querySelectorAll('.route-card').forEach(c => c.classList.remove('active'));
+          card.classList.add('active');
+          selectedRoute = routes.find(r => r.id === card.dataset.route);
+          renderBuses();
+          drawRoute();
+        };
+      });
+    }
+
+    function renderBuses(){
+      if(!selectedRoute) return;
+      const list = document.getElementById('busesList');
+      list.innerHTML = (selectedRoute.buses || []).map(b => `
+        <div class="bus-card" data-bus="${b.id}">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong style="font-size:13px">🚌 ${b.name || b.id}</strong>
+            <span class="eta-badge">Live</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Driver: <em>unknown</em></div>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('.bus-card').forEach(card => {
+        card.onclick = () => {
+          list.querySelectorAll('.bus-card').forEach(c => c.style.borderColor = 'var(--border)');
+          card.style.borderColor = '#3b82f6';
+          selectedBus = selectedRoute.buses.find(b => b.id === card.dataset.bus);
+          showBusOnMap();
+        };
+      });
+    }
+
+    function renderStops(){
+      const fromSel = document.getElementById('fromStop');
+      const toSel = document.getElementById('toStop');
+      routes.forEach(r => {
+        r.stops.forEach(s => {
+          fromSel.innerHTML += `<option value="${s.name}">${s.name} (${r.name})</option>`;
+          toSel.innerHTML += `<option value="${s.name}">${s.name} (${r.name})</option>`;
+        });
+      });
+    }
+
+    function drawRoute(){
+      if(!selectedRoute) return;
+      // Route selected; visuals available in Live Map.
+    }
+
+    function showBusOnMap(){
+      if(!selectedBus || !selectedRoute) return;
+      document.getElementById('selectedBusInfo').style.display = 'block';
+      document.getElementById('infoBusName').textContent = selectedBus.name;
+      document.getElementById('infoRoute').textContent = selectedRoute.name;
+      document.getElementById('infoSpeed').textContent = '32';
+      const nextStop = (selectedRoute.stops && selectedRoute.stops[1]) ? selectedRoute.stops[1].name : '—';
+      document.getElementById('infoNextStop').textContent = nextStop;
+      document.getElementById('infoETA').textContent = '8 min';
+    }
+
+    document.getElementById('btnPlanJourney').onclick = () => {
+      const from = document.getElementById('fromStop').value;
+      const to = document.getElementById('toStop').value;
+      if(!from || !to) return alert('Please select both stops');
+      
+      const result = document.getElementById('journeyResult');
+      result.style.display = 'block';
+      result.innerHTML = `
+        <div class="card">
+          <h4 style="margin:0 0 8px;font-size:13px">📍 ${from} → ${to}</h4>
+          <div style="font-size:13px">
+            <div style="margin:4px 0"><strong>Recommended Bus:</strong> Bus A1</div>
+            <div style="margin:4px 0"><strong>Distance:</strong> 5.2 km</div>
+            <div style="margin:4px 0"><strong>ETA:</strong> <span class="eta-badge">12 min</span></div>
+            <div style="margin:4px 0;color:var(--muted)">Next departure: 5 mins</div>
+          </div>
+        </div>
+      `;
+    };
+
+    document.getElementById('btnRefresh').onclick = () => location.reload();
+    document.getElementById('btnLocateMe').onclick = () => {
+      if(!navigator.geolocation) return alert('Geolocation not supported');
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude, longitude } = pos.coords;
+        document.getElementById('userLocationText').textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+      });
+    };
+
+    document.getElementById('btnOpenMap').onclick = () => {
+      const qs = new URLSearchParams();
+      if(selectedRoute){ qs.set('route', selectedRoute.id || selectedRoute.code); }
+      if(selectedBus){ qs.set('bus', selectedBus.id || selectedBus.name); }
+      const url = `../tracker.html?${qs.toString()}`;
+      window.open(url, '_blank');
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>User Dashboard Demo • Smart Bus</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .wrap{display:grid;grid-template-columns:360px 1fr;gap:12px;padding:12px;height:calc(100vh - 60px)}
+    header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border)}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:auto}
+    .map{height:100%;min-height:400px}
+    .route-card{background:#0b1220;border:1px solid var(--border);border-radius:8px;padding:12px;margin:8px 0;cursor:pointer;transition:all .2s}
+    .route-card:hover{border-color:#3b82f6;background:#0f1520}
+    .route-card.active{border-color:#22c55e;background:#0f1820}
+    .bus-card{background:#0b1220;border:1px solid var(--border);border-radius:8px;padding:10px;margin:6px 0;cursor:pointer;transition:all .2s}
+    .bus-card:hover{border-color:#3b82f6}
+    .eta-badge{display:inline-block;padding:4px 8px;background:#22c55e;color:white;border-radius:6px;font-size:12px;font-weight:600}
+    .section-title{font-size:13px;color:var(--muted);margin:12px 0 6px;font-weight:600;text-transform:uppercase}
+    @media (max-width: 768px) {
+      .wrap{grid-template-columns:1fr;height:auto;padding:8px;gap:8px}
+      header{flex-wrap:wrap;gap:8px}
+      header nav{width:100%;justify-content:center}
+      .panel{padding:10px}
+      .main-grid{grid-template-columns:1fr !important}
+    }
+  </style>
+  
+</head>
+<body>
+  <header>
+    <strong>User Dashboard (DEMO)</strong>
+    <nav style="display:flex;gap:8px">
+      <a class="btn" href="../tracker.html">Live Map</a>
+      <a class="btn" href="../index.html">Home</a>
+    </nav>
+  </header>
+
+  <div class="wrap">
+    <aside class="panel">
+      <h3 style="margin-top:0;font-size:16px">👋 Welcome, Rahul Kumar</h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Commuter • rahul@email.com</div>
+
+      <div class="section-title">📍 Track Bus by Route</div>
+      <div id="routesList">
+        <div class="route-card active" data-route="r1">
+          <strong style="font-size:14px">Route 42 - Downtown Loop</strong>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">6 stops • 2 buses</div>
+        </div>
+        <div class="route-card" data-route="r2">
+          <strong style="font-size:14px">Route 15 - City Express</strong>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">5 stops • 1 bus</div>
+        </div>
+      </div>
+
+      <div class="section-title">🚍 Select Bus</div>
+      <div id="busesList">
+        <div class="bus-card" data-bus="b1" style="border-color:#3b82f6">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong style="font-size:13px">🚌 Bus A1</strong>
+            <span class="eta-badge">Live</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Driver: Suresh Kumar • +91-90000-11111</div>
+        </div>
+        <div class="bus-card" data-bus="b2">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong style="font-size:13px">🚌 Bus A2</strong>
+            <span class="eta-badge">Live</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Driver: Anita Devi • +91-90000-22222</div>
+        </div>
+      </div>
+
+      <div class="section-title">🗺️ Journey Planner</div>
+      <div class="card" style="margin-top:6px">
+        <div class="field" style="margin-bottom:8px">
+          <label style="font-size:12px;color:var(--muted)">From</label>
+          <select id="fromStop" style="width:100%;padding:8px;background:#0b1220;border:1px solid var(--border);border-radius:6px;color:var(--text)">
+            <option value="">Select starting point</option>
+            <option value="Central Station">Central Station</option>
+            <option value="City Mall">City Mall</option>
+            <option value="Park Avenue">Park Avenue</option>
+            <option value="Hospital Junction">Hospital Junction</option>
+            <option value="Tech Park">Tech Park</option>
+            <option value="Airport Road">Airport Road</option>
+          </select>
+        </div>
+        <div class="field">
+          <label style="font-size:12px;color:var(--muted)">To</label>
+          <select id="toStop" style="width:100%;padding:8px;background:#0b1220;border:1px solid var(--border);border-radius:6px;color:var(--text)">
+            <option value="">Select destination</option>
+            <option value="Central Station">Central Station</option>
+            <option value="City Mall">City Mall</option>
+            <option value="Park Avenue">Park Avenue</option>
+            <option value="Hospital Junction">Hospital Junction</option>
+            <option value="Tech Park">Tech Park</option>
+            <option value="Airport Road">Airport Road</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="btnPlanJourney" style="width:100%;margin-top:8px">Get Route & ETA</button>
+      </div>
+
+      <div id="journeyResult" style="display:none;margin-top:12px">
+        <div class="card">
+          <h4 style="margin:0 0 8px;font-size:13px">📍 <span id="journeyPath"></span></h4>
+          <div style="font-size:13px">
+            <div style="margin:4px 0"><strong>Recommended Bus:</strong> Bus A1</div>
+            <div style="margin:4px 0"><strong>Distance:</strong> 5.2 km</div>
+            <div style="margin:4px 0"><strong>ETA:</strong> <span class="eta-badge">12 min</span></div>
+            <div style="margin:4px 0;color:var(--muted)">Next departure: 5 mins</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">🔔 Notifications</div>
+      <div class="card" style="margin-top:6px;font-size:13px">
+        <label class="toggle" style="margin-bottom:6px">
+          <input type="checkbox" id="notifyDelay" checked />
+          <span>Bus Delay Alerts</span>
+        </label>
+        <label class="toggle" style="margin-bottom:6px">
+          <input type="checkbox" id="notifyEmergency" checked />
+          <span>Emergency Alerts</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="notifyETA" />
+          <span>ETA Updates (10 min before)</span>
+        </label>
+      </div>
+    </aside>
+    
+    <main class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0;font-size:16px">🧰 User Tools</h3>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="btnRefresh">🔄 Refresh</button>
+          <button class="btn" id="btnLocateMe">📍 My Location</button>
+          <button class="btn btn-primary" id="btnOpenMap">🗺️ Open Live Map</button>
+        </div>
+      </div>
+      <div class="main-grid" style="display:grid;grid-template-columns:1fr;gap:12px">
+        <div class="card" style="padding:12px">
+          <h4 style="margin:0 0 8px;font-size:14px" id="infoBusName">Bus A1</h4>
+          <div style="font-size:12px">
+            <div style="margin:4px 0"><strong>Route:</strong> <span id="infoRoute">Route 42 - Downtown Loop</span></div>
+            <div style="margin:4px 0"><strong>Speed:</strong> <span id="infoSpeed">32</span> km/h</div>
+            <div style="margin:4px 0"><strong>Next Stop:</strong> <span id="infoNextStop">City Mall</span></div>
+            <div style="margin:4px 0"><strong>ETA:</strong> <span class="eta-badge" id="infoETA">8 min</span></div>
+            <div style="margin:8px 0 4px;padding-top:8px;border-top:1px solid var(--border)">
+              <strong>Driver:</strong> Suresh Kumar<br>
+              <a href="tel:+919000011111" style="color:#60a5fa;text-decoration:none">📞 +91-90000-11111</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:12px">
+          <h4 style="margin:0 0 8px;font-size:14px">📍 Your Location</h4>
+          <div id="userLocationText" style="font-size:13px;color:var(--muted)">Not determined yet</div>
+        </div>
+
+        <div class="card" style="padding:12px">
+          <h4 style="margin:0 0 8px;font-size:14px">🔔 Status</h4>
+          <div style="font-size:13px;color:var(--muted)">No active alerts</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  
+  <script>
+    let userMarker = null, selectedBus = 'b1', selectedRoute = 'r1';
+    let etaCountdown = 8;
+
+    const routeData = {
+      name: 'Route 42 - Downtown Loop',
+      path: [
+        [17.4435, 78.3772], [17.4399, 78.3929], [17.4368, 78.4066], [17.4315, 78.4206],
+        [17.4235, 78.4315], [17.4146, 78.4430], [17.4073, 78.4567], [17.3991, 78.4690],
+        [17.3923, 78.4801], [17.3850, 78.4867], [17.3771, 78.4922], [17.3700, 78.5003]
+      ],
+      stops: [
+        {name: 'Central Station', lat: 17.4435, lng: 78.3772, desc: 'Main railway station'},
+        {name: 'City Mall', lat: 17.4315, lng: 78.4206, desc: 'Shopping district'},
+        {name: 'Park Avenue', lat: 17.4146, lng: 78.4430, desc: 'Residential area'},
+        {name: 'Hospital Junction', lat: 17.3923, lng: 78.4801, desc: 'Medical center'},
+        {name: 'Tech Park', lat: 17.3771, lng: 78.4922, desc: 'IT hub'},
+        {name: 'Airport Road', lat: 17.3700, lng: 78.5003, desc: 'Transport hub'}
+      ]
+    };
+
+    // Simulated speed updates without map
+    setInterval(() => {
+      const speed = Math.floor(Math.random() * 10 + 28);
+      document.getElementById('infoSpeed').textContent = speed;
+    }, 3000);
+    
+    // Dynamic ETA countdown
+    setInterval(() => {
+      etaCountdown = Math.max(1, etaCountdown - 1);
+      document.getElementById('infoETA').textContent = etaCountdown + ' min';
+      if(etaCountdown === 1) etaCountdown = 8;
+    }, 12000);
+
+    // Route selection
+    document.querySelectorAll('.route-card').forEach(card => {
+      card.onclick = () => {
+        document.querySelectorAll('.route-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        selectedRoute = card.dataset.route;
+        const routeName = card.querySelector('strong').textContent;
+        document.getElementById('infoRoute').textContent = routeName;
+        alert(`✅ Selected: ${routeName}`);
+      };
+    });
+
+    // Bus selection
+    document.querySelectorAll('.bus-card').forEach(card => {
+      card.onclick = () => {
+        document.querySelectorAll('.bus-card').forEach(c => c.style.borderColor = 'var(--border)');
+        card.style.borderColor = '#3b82f6';
+        selectedBus = card.dataset.bus;
+        const busName = card.querySelector('strong').textContent.trim();
+        document.getElementById('infoBusName').textContent = busName;
+        etaCountdown = Math.floor(Math.random() * 5) + 5;
+        document.getElementById('infoETA').textContent = etaCountdown + ' min';
+        alert(`✅ Tracking ${busName}`);
+      };
+    });
+
+    // Journey planner
+    document.getElementById('btnPlanJourney').onclick = () => {
+      const from = document.getElementById('fromStop').value;
+      const to = document.getElementById('toStop').value;
+      if(!from || !to) return alert('Please select both stops');
+      
+      const result = document.getElementById('journeyResult');
+      result.style.display = 'block';
+      document.getElementById('journeyPath').textContent = `${from} → ${to}`;
+      alert(`✅ Planned: ${from} → ${to}\\nBus A1 • ETA: 12 min`);
+    };
+
+    // Locate user
+    document.getElementById('btnLocateMe').onclick = () => {
+      if(!navigator.geolocation) return alert('Geolocation not supported');
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude, longitude } = pos.coords;
+        document.getElementById('userLocationText').textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        alert(`✅ Location found!\\nNearest: ${routeData.stops[0].name}`);
+      }, () => {
+        alert('Unable to get your location.');
+      });
+    };
+
+    document.getElementById('btnRefresh').onclick = () => location.reload();
+    document.getElementById('btnOpenMap').onclick = () => {
+      window.open('../tracker.html', '_blank');
+    };
+
+    // Notification toggles
+    document.getElementById('notifyDelay').onchange = (e) => {
+      alert(e.target.checked ? '✅ Bus delay alerts enabled' : '❌ Bus delay alerts disabled');
+    };
+    document.getElementById('notifyEmergency').onchange = (e) => {
+      alert(e.target.checked ? '✅ Emergency alerts enabled' : '❌ Emergency alerts disabled');
+    };
+    document.getElementById('notifyETA').onchange = (e) => {
+      alert(e.target.checked ? '✅ ETA updates enabled (10 min before arrival)' : '❌ ETA updates disabled');
+    };
+  </script>
+</body>
+</html>

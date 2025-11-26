@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>User Signup • Smart Bus</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg)}
+    .auth-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px;max-width:560px;width:100%}
+    .brand-small{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .brand-small img{width:28px;height:28px;filter:invert(1) opacity(.9)}
+    .muted{color:var(--muted);font-size:13px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .actions{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:12px}
+    a.link{color:#93c5fd;text-decoration:none;font-size:14px}
+    a.link:hover{text-decoration:underline}
+    input,select,textarea{background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:10px;border-radius:8px;width:100%;font-family:inherit}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:#3b82f6}
+  </style>
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="brand-small">
+        <img src="../assets/images/bus.svg" alt="bus"/>
+        <h2 style="margin:0">Create User Account</h2>
+      </div>
+      <p class="muted">Students and Faculty — sign up to start tracking buses and viewing real-time ETAs.</p>
+
+      <form id="userSignupForm" class="form" style="margin-top:16px">
+        <div class="field">
+          <label for="userType">I am a</label>
+          <select id="userType" required>
+            <option value="student">Student</option>
+            <option value="faculty">Faculty</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="fullName">Full Name</label>
+            <input id="fullName" placeholder="John Doe" required />
+          </div>
+          <div class="field">
+            <label for="userId">ID Number</label>
+            <input id="userId" placeholder="STU12345" required />
+          </div>
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="text" placeholder="you@college.edu" required />
+        </div>
+        <div class="field">
+          <label for="phone">Phone</label>
+          <input id="phone" type="tel" placeholder="+91-90000-00000" required />
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="password">Password</label>
+            <input id="password" type="password" placeholder="••••••••" required minlength="6" />
+          </div>
+          <div class="field">
+            <label for="confirmPass">Confirm Password</label>
+            <input id="confirmPass" type="password" placeholder="••••••••" required />
+          </div>
+        </div>
+        <div class="actions">
+          <a class="link" href="../index.html">← Back to home</a>
+          <button class="btn btn-primary" type="submit">Sign Up</button>
+        </div>
+        <p class="muted" style="margin-top:12px;text-align:center">
+          Already have an account? <a href="login-user.html" class="link">Login here</a>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_URL = "https://xeibdoqrxpqgdwuackfc.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlaWJkb3FyeHBxZ2R3dWFja2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNzYyNTAsImV4cCI6MjA3OTc1MjI1MH0.J3b3xaAa532E03mUYHjFabBhd7kwNvoLkoSQJ0CX04k";
+  </script>
+  <script src="../assets/supabaseClient.js"></script>
+  <script src="../assets/auth.js"></script>
+  <script>
+    Auth.bindUserSignup('userSignupForm');
+  </script>
+</body>
+</html>

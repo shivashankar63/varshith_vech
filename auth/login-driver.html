@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Driver Login • Smart Bus</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
+    .auth-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:560px;width:100%}
+    .brand-small{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .brand-small img{width:28px;height:28px;filter:invert(1) opacity(.9)}
+    .muted{color:var(--muted);font-size:13px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .actions{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:12px}
+    a.link{color:#93c5fd;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="brand-small">
+        <img src="../assets/images/bus.svg" alt="bus"/>
+        <h2 style="margin:0">Driver Login</h2>
+      </div>
+      <p class="muted">Drivers — sign in to send location, see traffic, and access the emergency module.</p>
+
+      <form id="driverLoginForm" class="form">
+        <div class="row">
+          <div class="field">
+            <label for="busId">Bus</label>
+            <select id="busId" required>
+              <option value="A1">A1</option>
+              <option value="A2">A2</option>
+              <option value="B1">B1</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="driverEmail">Email</label>
+            <input id="driverEmail" type="text" placeholder="driver@transport.com" style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="driverPhone">Phone (optional)</label>
+          <input id="driverPhone" placeholder="+91-90000-00000" style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+        </div>
+        <div class="field">
+          <label for="driverPass">Password</label>
+          <input id="driverPass" type="password" placeholder="••••••••" required style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+        </div>
+        <div class="actions">
+          <a class="link" href="../index.html">← Back to home</a>
+          <button class="btn" type="submit">Sign In</button>
+        </div>
+        <p class="muted" style="margin-top:12px;text-align:center">
+          Don't have an account? <a href="signup-driver.html" class="link">Sign up here</a>
+        </p>
+      </form>
+
+      <div class="card" style="margin-top:12px">
+        <h3 style="margin-top:0;font-size:14px">Driver dashboard can include:</h3>
+        <ul style="margin:6px 0 0 16px">
+          <li>Send/stop location sharing</li>
+          <li>Traffic overlay and alternate routes</li>
+          <li>ETA to next stop and stop list</li>
+          <li>Emergency alert with quick presets</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_URL = "https://xeibdoqrxpqgdwuackfc.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlaWJkb3FyeHBxZ2R3dWFja2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNzYyNTAsImV4cCI6MjA3OTc1MjI1MH0.J3b3xaAa532E03mUYHjFabBhd7kwNvoLkoSQJ0CX04k";
+  </script>
+  <script src="../assets/supabaseClient.js"></script>
+  <script src="../assets/auth.js"></script>
+  <script>
+    Auth.bindDriverLogin('driverLoginForm');
+  </script>
+</body>
+</html>

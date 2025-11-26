@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Bus Tracking</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <style>
+    /* Visual tweaks to reduce map dominance */
+    .map{height:450px;min-height:360px;border-radius:12px;overflow:hidden}
+    .map-wrap{display:flex;flex-direction:column;gap:12px}
+    .card-inline{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/supabaseClient.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <img src="assets/images/bus.svg" alt="Bus" class="brand-icon" />
+      <h1>Smart Bus Tracking</h1>
+    </div>
+    <div class="header-actions">
+      <a href="auth/login-user.html" class="btn">User Login</a>
+      <a href="auth/login-driver.html" class="btn">Driver Login</a>
+      <button id="btnEmergency" class="btn btn-danger">Emergency</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <section class="card">
+        <h2>Choose Route</h2>
+        <div class="field">
+          <label for="routeSelect">Route</label>
+          <select id="routeSelect"></select>
+        </div>
+        <div class="field">
+          <label for="busSelect">Bus</label>
+          <select id="busSelect"></select>
+        </div>
+        <div class="field">
+          <label>Buses (multi)</label>
+          <div id="busMulti" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <div class="field">
+          <label>Bus Legend</label>
+          <div id="busLegend" style="font-size:12px;color:var(--muted)">No buses selected</div>
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <input type="checkbox" id="trafficToggle" />
+            <span>Show Traffic</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="altRouteToggle" />
+            <span>Suggest Alternate Route</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Driver</h2>
+        <div id="driverInfo" class="list">
+          <div><strong>Name:</strong> <span data-field="driverName">-</span></div>
+          <div><strong>Phone:</strong> <a href="#" data-field="driverPhone">-</a></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Stops & ETA</h2>
+        <div id="stopsList" class="stops"></div>
+      </section>
+
+      <section class="card">
+        <h2>Your Location</h2>
+        <div class="actions">
+          <button id="btnLocate" class="btn">Get Current Location</button>
+        </div>
+        <div id="userEta" class="eta">ETA to nearest stop: <strong>–</strong></div>
+      </section>
+
+      <footer class="app-footer">
+        <div>GPS GSM Based Smart Bus Tracking</div>
+        <small>Demo UI • No backend needed</small>
+      </footer>
+    </aside>
+
+    <section class="map-wrap">
+      <div id="map" class="map"></div>
+      <div class="card-inline">
+          <div id="busInfoBar" class="bus-bar" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+          <div class="bar-section">
+            <span class="label">Bus:</span>
+            <span id="infoBusName">–</span>
+          </div>
+          <div class="bar-section">
+            <span class="label">Speed:</span>
+            <span id="infoSpeed">0</span> km/h
+          </div>
+          <div class="bar-section">
+            <span class="label">Last Update:</span>
+            <span id="infoLastUpdate">–</span>
+          </div>
+            <div class="bar-section">
+              <span class="label">Live:</span>
+              <span id="liveStatus" style="font-weight:600;color:#9aa4b2">Idle</span>
+            </div>
+        </div>
+      </div>
+
+      <div class="card-inline">
+        <h2 style="margin-top:0;font-size:16px">Route Summary</h2>
+        <div style="font-size:13px;color:var(--muted)">Select a route to see summary.</div>
+      </div>
+
+      <div class="card-inline">
+        <h2 style="margin-top:0;font-size:16px">Service Announcements</h2>
+        <div id="alertsList" style="font-size:13px;color:var(--muted)">No active alerts</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Emergency Modal -->
+  <dialog id="emergencyModal" class="modal">
+    <form method="dialog" class="modal-card" id="emergencyForm">
+      <header>
+        <h3>Emergency Alert</h3>
+      </header>
+      <div class="modal-body">
+        <div class="field">
+          <label for="emType">Type</label>
+          <select id="emType" required>
+            <option value="breakdown">Breakdown</option>
+            <option value="accident">Accident</option>
+            <option value="medical">Medical</option>
+            <option value="security">Security</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="emNotes">Notes</label>
+          <textarea id="emNotes" rows="3" placeholder="Describe the situation..."></textarea>
+        </div>
+      </div>
+      <footer class="modal-actions">
+        <button type="submit" class="btn btn-danger">Send Alert</button>
+        <button type="button" class="btn btn-ghost" id="btnCloseModal">Cancel</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

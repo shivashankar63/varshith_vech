@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Driver Dashboard Demo • Smart Bus</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .wrap{display:grid;grid-template-columns:340px 1fr;gap:12px;padding:12px;height:calc(100vh - 60px)}
+    header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border)}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:auto}
+    .map{height:100%;min-height:400px}
+    .status-badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600}
+    .status-active{background:#22c55e;color:white}
+    .status-idle{background:#6b7280;color:white}
+    .section-title{font-size:13px;color:var(--muted);margin:14px 0 8px;font-weight:600;text-transform:uppercase}
+    .stat-card{background:#0b1220;border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+    .stop-item{background:#0b1220;border:1px solid var(--border);border-radius:6px;padding:8px;margin:6px 0;font-size:13px}
+    @media (max-width: 768px) {
+      .wrap{grid-template-columns:1fr;height:auto;padding:8px;gap:8px}
+      header{flex-wrap:wrap;gap:8px}
+      header nav{width:100%;justify-content:center}
+      .panel{padding:10px}
+      .main-grid{grid-template-columns:1fr !important}
+    }
+  </style>
+  
+</head>
+<body>
+  <header>
+    <strong>Driver Dashboard (DEMO)</strong>
+    <nav style="display:flex;gap:8px">
+      <a class="btn" href="../tracker.html">Open Tracker</a>
+      <a class="btn" href="../index.html">Home</a>
+    </nav>
+  </header>
+
+  <div class="wrap">
+    <aside class="panel">
+      <h3 style="margin-top:0;font-size:16px">👨‍✈️ Suresh Kumar</h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Bus A1 • ID: DRV001 • +91-90000-11111</div>
+
+      <div class="section-title">📡 GPS Location Sharing</div>
+      <div class="card" style="margin-top:6px">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button class="btn btn-primary" id="btnStartGPS" style="flex:1">▶️ Start</button>
+          <button class="btn" id="btnStopGPS" style="flex:1">⏹️ Stop</button>
+        </div>
+        <div id="gpsStatus" style="padding:8px;background:#0b1220;border-radius:6px;text-align:center;font-size:12px">
+          <span class="status-badge status-idle">● Idle</span>
+        </div>
+        <div id="gpsCoords" style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">
+          No location data
+        </div>
+      </div>
+
+      <div class="section-title">🗺️ Route Information</div>
+      <div class="card" style="margin-top:6px;font-size:13px">
+        <div><strong>Current Route:</strong> <span id="routeName">Route 42 - Downtown Loop</span></div>
+        <div style="margin-top:4px;color:var(--muted)">Total Stops: <span id="totalStops">6</span></div>
+      </div>
+
+      <div class="section-title">📍 Upcoming Stops</div>
+      <div id="stopsList">
+        <div class="stop-item">
+          <strong>1. Central Station</strong>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Main railway station • ETA: 6 min</div>
+        </div>
+        <div class="stop-item">
+          <strong>2. City Mall</strong>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Shopping district • ETA: 12 min</div>
+        </div>
+        <div class="stop-item">
+          <strong>3. Park Avenue</strong>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Residential area • ETA: 18 min</div>
+        </div>
+        <div class="stop-item">
+          <strong>4. Hospital Junction</strong>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Medical center • ETA: 24 min</div>
+        </div>
+        <div class="stop-item">
+          <strong>5. Tech Park</strong>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">IT hub • ETA: 30 min</div>
+        </div>
+        <div class="stop-item">
+          <strong>6. Airport Road</strong>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Transport hub • ETA: 36 min</div>
+        </div>
+      </div>
+
+      <div class="section-title">🚦 Traffic Control</div>
+      <div class="card" style="margin-top:6px">
+        <label class="toggle" style="margin-bottom:8px;font-size:13px">
+          <input type="checkbox" id="trafficToggle" />
+          <span>Show Traffic Congestion</span>
+        </label>
+        <label class="toggle" style="font-size:13px">
+          <input type="checkbox" id="altRouteToggle" />
+          <span>Show Alternate Route</span>
+        </label>
+        <div id="trafficAlert" style="display:none;margin-top:8px;padding:8px;background:#ef444420;border:1px solid #ef4444;border-radius:6px;font-size:12px;color:#fca5a5">
+          ⚠️ Heavy traffic ahead. Consider alternate route.
+        </div>
+      </div>
+
+      <div class="section-title">🆘 Emergency Actions</div>
+      <div class="card" style="margin-top:6px">
+        <button class="btn btn-danger" id="btnEmergency" style="width:100%;margin-bottom:6px">🚨 Emergency Alert</button>
+        <button class="btn" id="btnBreakdown" style="width:100%">⚙️ Report Breakdown</button>
+      </div>
+
+      <div class="section-title">📊 Today's Performance</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        <div class="stat-card">
+          <div style="color:var(--muted);font-size:11px">Trips</div>
+          <strong style="font-size:18px" id="statTrips">4</strong>
+        </div>
+        <div class="stat-card">
+          <div style="color:var(--muted);font-size:11px">Distance</div>
+          <strong style="font-size:18px" id="statDistance">87 km</strong>
+        </div>
+      </div>
+    </aside>
+    
+    <main class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0;font-size:16px">🧰 Driver Tools</h3>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" id="btnOpenMap">🗺️ Open Live Map</button>
+        </div>
+      </div>
+      <div class="main-grid" style="display:grid;grid-template-columns:1fr;gap:12px">
+        <div>
+          <div class="section-title">📈 Live Metrics</div>
+          <div class="card" style="padding:12px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+              <div class="stat-card">
+                <div style="font-size:12px;color:var(--muted)">Current Speed</div>
+                <strong style="font-size:20px" id="currentSpeed">0</strong>
+                <div style="font-size:12px;color:var(--muted)">km/h</div>
+              </div>
+              <div class="stat-card">
+                <div style="font-size:12px;color:var(--muted)">Next Stop ETA</div>
+                <strong style="font-size:18px;color:#22c55e" id="nextStopETA">--</strong>
+              </div>
+              <div class="stat-card">
+                <div style="font-size:12px;color:var(--muted)">Passengers</div>
+                <strong style="font-size:20px" id="passengerCount">24</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-title">🔔 Service Announcements</div>
+          <div class="card" style="padding:12px">
+            <div style="font-size:13px;color:var(--muted)">No active alerts</div>
+          </div>
+
+          <div class="section-title">🛠️ Quick Tools</div>
+          <div class="card" style="padding:12px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn">🧭 Navigate to Next Stop</button>
+            <button class="btn">📞 Contact Dispatch</button>
+            <button class="btn">🧾 Trip Report</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Emergency Modal -->
+  <dialog id="emergencyModal" class="modal">
+    <form method="dialog" class="modal-card" id="emergencyForm">
+      <header>
+        <h3>Emergency Alert</h3>
+      </header>
+      <div class="modal-body">
+        <div class="field">
+          <label for="emType">Type</label>
+          <select id="emType" required>
+            <option value="breakdown">Breakdown</option>
+            <option value="accident">Accident</option>
+            <option value="medical">Medical</option>
+            <option value="security">Security</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="emNotes">Notes</label>
+          <textarea id="emNotes" rows="3" placeholder="Describe the situation..."></textarea>
+        </div>
+      </div>
+      <footer class="modal-actions">
+        <button type="submit" class="btn btn-danger">Send Alert</button>
+        <button type="button" class="btn btn-ghost" id="btnCloseModal">Cancel</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script>
+    let gpsActive = false;
+    let currentPosition = null, speed = 0, distance = 87, simInterval = null;
+    let etaInterval = null, trips = 4;
+
+    const routeData = {
+      name: 'Route 42 - Downtown Loop',
+      path: [
+        [17.4435, 78.3772], [17.4399, 78.3929], [17.4368, 78.4066], [17.4315, 78.4206],
+        [17.4235, 78.4315], [17.4146, 78.4430], [17.4073, 78.4567], [17.3991, 78.4690],
+        [17.3923, 78.4801], [17.3850, 78.4867], [17.3771, 78.4922], [17.3700, 78.5003]
+      ],
+      altPath: [
+        [17.4146, 78.4430], [17.4100, 78.4500], [17.4000, 78.4650], [17.3923, 78.4801]
+      ],
+      congestion: [
+        [[17.4073, 78.4567],[17.3991, 78.4690]],
+        [[17.3850, 78.4867],[17.3771, 78.4922]]
+      ],
+      stops: [
+        {name: 'Central Station', lat: 17.4435, lng: 78.3772},
+        {name: 'City Mall', lat: 17.4315, lng: 78.4206},
+        {name: 'Park Avenue', lat: 17.4146, lng: 78.4430},
+        {name: 'Hospital Junction', lat: 17.3923, lng: 78.4801},
+        {name: 'Tech Park', lat: 17.3771, lng: 78.4922},
+        {name: 'Airport Road', lat: 17.3700, lng: 78.5003}
+      ]
+    };
+
+    let pathIndex = 0;
+
+    // GPS Controls
+    document.getElementById('btnStartGPS').onclick = () => {
+      gpsActive = true;
+      document.getElementById('gpsStatus').innerHTML = '<span class="status-badge status-active">● Active</span>';
+      
+      // Simulate movement along route
+      pathIndex = 0;
+      simInterval = setInterval(() => {
+        pathIndex = (pathIndex + 1) % routeData.path.length;
+        currentPosition = routeData.path[pathIndex];
+        speed = Math.floor(Math.random() * 15 + 25); // 25-40 km/h
+        
+        document.getElementById('gpsCoords').textContent = `${currentPosition[0].toFixed(5)}, ${currentPosition[1].toFixed(5)}`;
+        document.getElementById('currentSpeed').textContent = speed;
+        document.getElementById('passengerCount').textContent = Math.floor(Math.random() * 10 + 20);
+        
+        distance += parseFloat(speed) / 3600;
+        document.getElementById('statDistance').textContent = distance.toFixed(0) + ' km';
+      }, 2000);
+      
+      // Dynamic ETA countdown
+      let eta = 6;
+      document.getElementById('nextStopETA').textContent = eta + ' min';
+      etaInterval = setInterval(() => {
+        eta = Math.max(1, eta - 1);
+        document.getElementById('nextStopETA').textContent = eta + ' min';
+        if(eta === 1) {
+          eta = 6;
+          trips++;
+          document.getElementById('statTrips').textContent = trips;
+        }
+      }, 10000);
+      
+      alert('✅ GPS tracking started. Your location is now being shared with the system.');
+    };
+
+    document.getElementById('btnStopGPS').onclick = () => {
+      gpsActive = false;
+      if(simInterval) clearInterval(simInterval);
+      if(etaInterval) clearInterval(etaInterval);
+      document.getElementById('gpsStatus').innerHTML = '<span class="status-badge status-idle">● Idle</span>';
+      document.getElementById('currentSpeed').textContent = '0';
+      document.getElementById('nextStopETA').textContent = '--';
+      alert('⏹️ GPS tracking stopped.');
+    };
+
+    // Traffic & Alternate Routes
+    document.getElementById('trafficToggle').onchange = (e) => {
+      document.getElementById('trafficAlert').style.display = e.target.checked ? 'block' : 'none';
+    };
+
+    document.getElementById('altRouteToggle').onchange = (e) => {
+      // Alternate route visuals available in Live Map.
+    };
+
+    document.getElementById('btnOpenMap').onclick = () => {
+      window.open('./tracker.html', '_blank');
+    };
+
+    // Emergency
+    const emModal = document.getElementById('emergencyModal');
+    document.getElementById('btnEmergency').onclick = () => emModal.showModal();
+    document.getElementById('btnBreakdown').onclick = () => {
+      if(confirm('Report bus breakdown? This will notify transport management immediately.')) {
+        console.log('BREAKDOWN', { bus: 'A1', driver: 'DRV001', location: currentPosition, ts: Date.now() });
+        alert('⚙️ Breakdown reported. Help is on the way.');
+      }
+    };
+    document.getElementById('btnCloseModal').onclick = () => emModal.close();
+    document.getElementById('emergencyForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const type = document.getElementById('emType').value;
+      const notes = document.getElementById('emNotes').value;
+      console.log('EMERGENCY', { bus: 'A1', driver: 'DRV001', type, notes, location: currentPosition, ts: Date.now() });
+      emModal.close();
+      alert(`🚨 ${type.toUpperCase()} alert sent to transport in-charge with your current location.`);
+    });
+    
+    // Quick Tools functionality
+    const quickTools = document.querySelectorAll('.card button');
+    quickTools.forEach(btn => {
+      if(btn.textContent.includes('Navigate')) {
+        btn.onclick = () => {
+          const nextStop = routeData.stops[Math.min(pathIndex + 1, routeData.stops.length - 1)];
+          alert(`🧭 Navigation started to: ${nextStop.name}\\n\\nCoordinates: ${nextStop.lat}, ${nextStop.lng}\\nETA: 6 minutes`);
+          if(!gpsActive) alert('💡 Tip: Start GPS sharing for real-time navigation!');
+        };
+      } else if(btn.textContent.includes('Dispatch')) {
+        btn.onclick = () => {
+          alert('📞 Calling Transport Dispatch...\\n\\nContact: +91-80000-99999\\nSupport available 24/7');
+        };
+      } else if(btn.textContent.includes('Trip Report')) {
+        btn.onclick = () => {
+          const report = `🧾 Trip Report - Bus A1\\n\\nDriver: Suresh Kumar (DRV001)\\nRoute: ${routeData.name}\\n\\nToday\\'s Stats:\\n• Trips completed: ${trips}\\n• Distance covered: ${distance.toFixed(1)} km\\n• Avg speed: 32 km/h\\n• On-time performance: 94%\\n\\nGenerated: ${new Date().toLocaleString()}`;
+          console.log(report);
+          alert(report);
+        };
+      }
+    });
+  </script>
+</body>
+</html>

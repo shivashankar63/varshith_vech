@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>User Login • Smart Bus</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
+    .auth-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:560px;width:100%}
+    .brand-small{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .brand-small img{width:28px;height:28px;filter:invert(1) opacity(.9)}
+    .muted{color:var(--muted);font-size:13px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .actions{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:12px}
+    a.link{color:#93c5fd;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="brand-small">
+        <img src="../assets/images/bus.svg" alt="bus"/>
+        <h2 style="margin:0">User Login</h2>
+      </div>
+      <p class="muted">Students and Faculty — sign in to view live buses, ETAs, routes, and notifications.</p>
+
+      <form id="userLoginForm" class="form">
+        <div class="field">
+          <label for="userType">I am a</label>
+          <select id="userType" required>
+            <option value="student">Student</option>
+            <option value="faculty">Faculty</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="userId">ID Number</label>
+            <input id="userId" placeholder="e.g., STU12345" required style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" type="text" placeholder="you@college.edu" required style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="••••••••" required style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+        </div>
+        <div class="actions">
+          <a class="link" href="../index.html">← Back to home</a>
+          <button class="btn" type="submit">Sign In</button>
+        </div>
+        <p class="muted" style="margin-top:12px;text-align:center">
+          Don't have an account? <a href="signup-user.html" class="link">Sign up here</a>
+        </p>
+      </form>
+
+      <div class="card" style="margin-top:12px">
+        <h3 style="margin-top:0;font-size:14px">After login, your dashboard can include:</h3>
+        <ul style="margin:6px 0 0 16px">
+          <li>Saved routes and nearest stop</li>
+          <li>Real-time ETA alerts and notifications</li>
+          <li>Emergency contact visibility</li>
+          <li>Crowd level and seat availability (optional)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_URL = "https://xeibdoqrxpqgdwuackfc.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlaWJkb3FyeHBxZ2R3dWFja2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNzYyNTAsImV4cCI6MjA3OTc1MjI1MH0.J3b3xaAa532E03mUYHjFabBhd7kwNvoLkoSQJ0CX04k";
+  </script>
+  <script src="../assets/supabaseClient.js"></script>
+  <script>
+    Auth.bindUserLogin('userLoginForm');
+  </script>
+</body>
+</html>

@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Driver Dashboard • Smart Bus</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .wrap{display:grid;grid-template-columns:360px 1fr;gap:12px;padding:12px;height:calc(100vh - 60px)}
+    header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border)}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:auto}
+    .map{height:450px;min-height:360px;border-radius:12px;overflow:hidden}
+    .status-badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600}
+    .status-active{background:#22c55e;color:white}
+    .status-idle{background:#6b7280;color:white}
+    .section-title{font-size:13px;color:var(--muted);margin:14px 0 8px;font-weight:600;text-transform:uppercase}
+    .stat-card{background:#0b1220;border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+    .stop-item{background:#0b1220;border:1px solid var(--border);border-radius:6px;padding:8px;margin:6px 0;font-size:13px}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_URL = "https://xeibdoqrxpqgdwuackfc.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlaWJkb3FyeHBxZ2R3dWFja2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNzYyNTAsImV4cCI6MjA3OTc1MjI1MH0.J3b3xaAa532E03mUYHjFabBhd7kwNvoLkoSQJ0CX04k";
+  </script>
+  <script src="../assets/supabaseClient.js"></script>
+  
+</head>
+<body>
+  <header>
+    <strong>Driver Dashboard</strong>
+    <nav style="display:flex;gap:8px">
+      <a class="btn" href="../tracker.html">Open Tracker</a>
+      <a class="btn" href="../index.html">Home</a>
+      <button class="btn" id="btnLogout">Logout</button>
+    </nav>
+  </header>
+
+  <div class="wrap">
+    <aside class="panel">
+      <h3 style="margin-top:0;font-size:16px">👨‍✈️ <span id="driverName"></span></h3>
+      <div id="driverInfo" style="font-size:12px;color:var(--muted);margin-bottom:12px"></div>
+
+      <div class="section-title">📡 GPS Location Sharing</div>
+      <div class="card" style="margin-top:6px">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button class="btn btn-primary" id="btnStartGPS" style="flex:1">▶️ Start</button>
+          <button class="btn" id="btnStopGPS" style="flex:1">⏹️ Stop</button>
+        </div>
+        <div id="gpsStatus" style="padding:8px;background:#0b1220;border-radius:6px;text-align:center;font-size:12px">
+          <span class="status-badge status-idle">● Idle</span>
+        </div>
+        <div id="gpsCoords" style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">
+          No location data
+        </div>
+      </div>
+
+      <div class="section-title">🗺️ Route Information</div>
+      <div class="card" style="margin-top:6px;font-size:13px">
+        <div><strong>Current Route:</strong> <span id="routeName">Loading...</span></div>
+        <div style="margin-top:4px;color:var(--muted)">Total Stops: <span id="totalStops">0</span></div>
+      </div>
+
+      <div class="section-title">📍 Upcoming Stops</div>
+      <div id="stopsList"></div>
+
+      <div class="section-title">🚦 Traffic Control</div>
+      <div class="card" style="margin-top:6px">
+        <label class="toggle" style="margin-bottom:8px;font-size:13px">
+          <input type="checkbox" id="trafficToggle" />
+          <span>Show Traffic Congestion</span>
+        </label>
+        <label class="toggle" style="font-size:13px">
+          <input type="checkbox" id="altRouteToggle" />
+          <span>Show Alternate Route</span>
+        </label>
+        <div id="trafficAlert" style="display:none;margin-top:8px;padding:8px;background:#ef444420;border:1px solid #ef4444;border-radius:6px;font-size:12px;color:#fca5a5">
+          ⚠️ Heavy traffic ahead. Consider alternate route.
+        </div>
+      </div>
+
+      <div class="section-title">🆘 Emergency Actions</div>
+      <div class="card" style="margin-top:6px">
+        <button class="btn btn-danger" id="btnEmergency" style="width:100%;margin-bottom:6px">🚨 Emergency Alert</button>
+        <button class="btn" id="btnBreakdown" style="width:100%">⚙️ Report Breakdown</button>
+      </div>
+
+      <div class="section-title">📊 Today's Performance</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        <div class="stat-card">
+          <div style="color:var(--muted);font-size:11px">Trips</div>
+          <strong style="font-size:18px" id="statTrips">0</strong>
+        </div>
+        <div class="stat-card">
+          <div style="color:var(--muted);font-size:11px">Distance</div>
+          <strong style="font-size:18px" id="statDistance">0 km</strong>
+        </div>
+      </div>
+    </aside>
+    
+    <main class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0;font-size:16px">🧰 Driver Tools</h3>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" id="btnOpenMap">🗺️ Open Live Map</button>
+        </div>
+      </div>
+      <div class="main-grid" style="display:grid;grid-template-columns:1fr;gap:12px">
+        <div>
+          <div class="section-title">📈 Live Metrics</div>
+          <div class="card" style="padding:12px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+              <div class="stat-card">
+                <div style="font-size:12px;color:var(--muted)">Current Speed</div>
+                <strong style="font-size:20px" id="currentSpeed">0</strong>
+                <div style="font-size:12px;color:var(--muted)">km/h</div>
+              </div>
+              <div class="stat-card">
+                <div style="font-size:12px;color:var(--muted)">Next Stop ETA</div>
+                <strong style="font-size:18px;color:#22c55e" id="nextStopETA">--</strong>
+              </div>
+              <div class="stat-card">
+                <div style="font-size:12px;color:var(--muted)">Passengers</div>
+                <strong style="font-size:20px" id="passengerCount">0</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-title">🔔 Service Announcements</div>
+          <div class="card" style="padding:12px">
+            <div style="font-size:13px;color:var(--muted)">No active alerts</div>
+          </div>
+
+          <div class="section-title">🛠️ Quick Tools</div>
+          <div class="card" style="padding:12px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn">🧭 Navigate to Next Stop</button>
+            <button class="btn">📞 Contact Dispatch</button>
+            <button class="btn">🧾 Trip Report</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="emergencyModal" class="modal">
+    <form method="dialog" class="modal-card" id="emergencyForm">
+      <header>
+        <h3>Emergency Alert</h3>
+      </header>
+      <div class="modal-body">
+        <div class="field">
+          <label for="emType">Type</label>
+          <select id="emType" required>
+            <option value="breakdown">Breakdown</option>
+            <option value="accident">Accident</option>
+            <option value="medical">Medical</option>
+            <option value="security">Security</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="emNotes">Notes</label>
+          <textarea id="emNotes" rows="3" placeholder="Describe the situation..."></textarea>
+        </div>
+      </div>
+      <footer class="modal-actions">
+        <button type="submit" class="btn btn-danger">Send Alert</button>
+        <button type="button" class="btn btn-ghost" id="btnCloseModal">Cancel</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="../assets/auth.js"></script>
+  <script>
+    const session = Auth.requireRole('driver');
+    document.getElementById('btnLogout').onclick = () => { Auth.clear(); location.href = '../auth/login-driver.html'; };
+    document.getElementById('driverName').textContent = session.fullName || session.driverId;
+    document.getElementById('driverInfo').textContent = `Bus ${session.busId} • ID: ${session.driverId} • ${session.phone}`;
+
+    let gpsActive = false, gpsWatchId = null, routeData = null;
+    let simTimer = null, simT = 0; // simulation progression
+    let currentPosition = null, speed = 0, trips = 4, distance = 87;
+
+    // Load route data based on assigned bus via Supabase (fallback to local JSON)
+    (async () => {
+      try {
+        if(window.SB && typeof SB.getRoutesWithDetails === 'function'){
+          const routes = await SB.getRoutesWithDetails();
+          const busIdLower = String(session.busId || '').toLowerCase();
+          routeData = routes.find(r => Array.isArray(r.buses) && r.buses.some(b => {
+            return [b.id, b.code, b.name].filter(Boolean).some(x => String(x).toLowerCase().includes(busIdLower));
+          })) || routes[0];
+        } else {
+          const res = await fetch('../assets/data/routes.json');
+          const data = await res.json();
+          routeData = data.routes.find(r => r.buses.some(b => (b.id || '').toLowerCase().includes(String(session.busId || '').toLowerCase()))) || data.routes[0];
+        }
+        document.getElementById('routeName').textContent = routeData.name;
+        document.getElementById('totalStops').textContent = (routeData.stops || []).length;
+        renderStops();
+      } catch (err){
+        console.error('Failed to load route data', err);
+        document.getElementById('routeName').textContent = 'Unavailable';
+      }
+    })();
+
+    function renderStops(){
+      const list = document.getElementById('stopsList');
+      list.innerHTML = routeData.stops.map((s, i) => `
+        <div class="stop-item">
+          <strong>${i + 1}. ${s.name}</strong>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${s.desc || 'Regular stop'} • ETA: ${(i + 1) * 6} min</div>
+        </div>
+      `).join('');
+    }
+
+    // No embedded map on driver dashboard; map available via Open Live Map button.
+
+    // GPS Controls
+    document.getElementById('btnStartGPS').onclick = () => {
+      gpsActive = true;
+      document.getElementById('gpsStatus').innerHTML = '<span class="status-badge status-active">● Active</span>';
+      
+      if(navigator.geolocation){
+        gpsWatchId = navigator.geolocation.watchPosition(async pos => {
+        const { latitude, longitude, speed: spd } = pos.coords;
+        currentPosition = [latitude, longitude];
+        speed = spd ? (spd * 3.6).toFixed(0) : Math.floor(Math.random() * 20 + 25); // km/h
+        
+        document.getElementById('gpsCoords').textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        document.getElementById('currentSpeed').textContent = speed;
+        document.getElementById('nextStopETA').textContent = '8 min';
+        document.getElementById('passengerCount').textContent = Math.floor(Math.random() * 30 + 20);
+        
+        // Simulate stats update
+        distance += parseFloat(speed) / 60;
+        document.getElementById('statDistance').textContent = distance.toFixed(0) + ' km';
+
+        // Post live position to Supabase if available
+        try {
+          if(window.SB && typeof SB.postBusPosition === 'function'){
+            await SB.postBusPosition(session.busId, latitude, longitude, parseFloat(speed), 0);
+          }
+        } catch (e){
+          console.warn('Position post failed', e);
+        }
+        }, err => {
+          console.error(err);
+          // Fallback to simulation if permission denied or unavailable
+          startSimulation();
+        }, { enableHighAccuracy: true });
+        alert('GPS tracking started. Your location is now being shared with the system.');
+      } else {
+        // No geolocation support: start simulation
+        startSimulation();
+        alert('Geolocation not available. Starting simulated tracking.');
+      }
+    };
+
+    document.getElementById('btnStopGPS').onclick = () => {
+      gpsActive = false;
+      if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+      if(simTimer){ clearInterval(simTimer); simTimer = null; }
+      document.getElementById('gpsStatus').innerHTML = '<span class="status-badge status-idle">● Idle</span>';
+      document.getElementById('currentSpeed').textContent = '0';
+      alert('GPS tracking stopped.');
+    };
+
+    // Traffic & Alternate Routes
+    document.getElementById('trafficToggle').onchange = (e) => {
+      // Map overlays are available in the Live Map view.
+      document.getElementById('trafficAlert').style.display = e.target.checked ? 'block' : 'none';
+    };
+
+    document.getElementById('altRouteToggle').onchange = (e) => {
+      // Alternate route visuals are available in the Live Map view.
+    };
+
+    document.getElementById('btnOpenMap').onclick = () => {
+      const routeId = routeData && (routeData.id || routeData.code);
+      const qs = new URLSearchParams();
+      if(routeId) qs.set('route', routeId);
+      if(session.busId) qs.set('bus', session.busId);
+      const url = `../tracker.html?${qs.toString()}`;
+      window.open(url, '_blank');
+    };
+
+    // Emergency
+    const emModal = document.getElementById('emergencyModal');
+    document.getElementById('btnEmergency').onclick = () => emModal.showModal();
+    document.getElementById('btnBreakdown').onclick = () => {
+      if(confirm('Report bus breakdown? This will notify transport management immediately.')) {
+        console.log('BREAKDOWN', { ...session, location: currentPosition, ts: Date.now() });
+        alert('Breakdown reported. Help is on the way.');
+      }
+    };
+    document.getElementById('btnCloseModal').onclick = () => emModal.close();
+    document.getElementById('emergencyForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const type = document.getElementById('emType').value;
+      const notes = document.getElementById('emNotes').value;
+      console.log('EMERGENCY', { role:'driver', ...session, type, notes, location: currentPosition, ts: Date.now() });
+      emModal.close();
+      alert(`${type.toUpperCase()} alert sent to transport in-charge with your current location.`);
+    });
+
+    // Initialize stats
+    document.getElementById('statTrips').textContent = trips;
+    document.getElementById('statDistance').textContent = distance + ' km';
+
+    // Simulation: walk along route path and post positions
+    function startSimulation(){
+      if(!routeData || !(routeData.path || routeData.stops)){
+        console.warn('No route data for simulation');
+        return;
+      }
+      const path = routeData.path || routeData.stops.map(s => [s.lat, s.lng]);
+      simTimer = setInterval(async () => {
+        if(!gpsActive) return;
+        simT = (simT + 0.01) % 1;
+        const pos = pointOnPath(path, simT);
+        const latitude = pos[0], longitude = pos[1];
+        currentPosition = [latitude, longitude];
+        speed = Math.floor(Math.random() * 20 + 25);
+        document.getElementById('gpsCoords').textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        document.getElementById('currentSpeed').textContent = speed;
+        document.getElementById('nextStopETA').textContent = '~8 min';
+        distance += parseFloat(speed) / 60;
+        document.getElementById('statDistance').textContent = distance.toFixed(0) + ' km';
+        try {
+          if(window.SB && typeof SB.postBusPosition === 'function'){
+            await SB.postBusPosition(session.busId, latitude, longitude, parseFloat(speed), 0);
+          }
+        } catch(e){ console.warn('Sim position post failed', e); }
+      }, 1000);
+    }
+
+    function pointOnPath(path, t){
+      const total = pathLength(path);
+      let target = t * total;
+      for(let i=1;i<path.length;i++){
+        const seg = haversine(path[i-1], path[i]);
+        if(target <= seg){
+          const f = seg === 0 ? 0 : target/seg;
+          return [
+            path[i-1][0] + (path[i][0]-path[i-1][0])*f,
+            path[i-1][1] + (path[i][1]-path[i-1][1])*f
+          ];
+        }
+        target -= seg;
+      }
+      return path[path.length-1];
+    }
+
+    function haversine(a, b){
+      const R = 6371000;
+      const toRad = d => d*Math.PI/180;
+      const dLat = toRad(b[0]-a[0]);
+      const dLng = toRad(b[1]-a[1]);
+      const lat1 = toRad(a[0]);
+      const lat2 = toRad(b[0]);
+      const sa = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+      return 2*R*Math.asin(Math.sqrt(sa));
+    }
+
+    function pathLength(path){
+      let s = 0; for(let i=1;i<path.length;i++){ s += haversine(path[i-1], path[i]); } return s;
+    }
+  </script>
+</body>
+</html>
