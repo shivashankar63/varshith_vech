@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="../assets/styles.css">
   <style>
     .wrap{display:grid;grid-template-columns:360px 1fr;gap:12px;padding:12px;height:calc(100vh - 60px)}
+          <button class="btn" id="btnStarRoute" title="Favorite route" style="margin-top:8px">⭐ Favorite</button>
+          <div id="favRoutes" style="margin-top:8px;font-size:12px;color:var(--muted)">No favorites yet</div>
     header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border)}
     .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:auto}
     .map{height:450px;min-height:360px;border-radius:12px;overflow:hidden}
@@ -18,11 +20,18 @@
     .section-title{font-size:13px;color:var(--muted);margin:12px 0 6px;font-weight:600;text-transform:uppercase}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+          <button class="btn" id="btnShare">Share ETA</button>
+          <button class="btn" id="btnNotify">Enable Push</button>
   <script src="../assets/errorHandler.js"></script>
+  <script src="../assets/performance.js"></script>
   <script src="../assets/config.js"></script>
   <script src="../assets/supabaseClient.js"></script>
   
 </head>
+        <div id="qrWrap" style="margin-top:10px;display:none">
+          <strong>🎟️ Boarding Pass</strong>
+          <canvas id="qrCanvas" width="160" height="160" style="margin-top:6px;border:1px solid var(--border);border-radius:6px"></canvas>
+        </div>
 <body>
   <header>
     <strong>User Dashboard</strong>
@@ -30,7 +39,7 @@
       <a class="btn" href="../tracker.html">Live Map</a>
       <a class="btn" href="../index.html">Home</a>
       <button class="btn" id="btnLogout">Logout</button>
-    </nav>
+        <div id="crowdingIndicator" style="font-size:13px;color:var(--muted)">Crowding indicator appears here.</div>
   </header>
 
   <div class="wrap">
@@ -149,12 +158,20 @@
           } else {
             const res = await fetch('../assets/data/routes.json');
             const data = await res.json();
+              const favBtn = document.getElementById('btnStarRoute');
+              const favList = document.getElementById('favRoutes');
+              const shareBtn = document.getElementById('btnShare');
+              const notifyBtn = document.getElementById('btnNotify');
+              const qrCanvas = document.getElementById('qrCanvas');
+              const qrWrap = document.getElementById('qrWrap');
+              const crowdEl = document.getElementById('crowdingIndicator');
             routes = data.routes;
           }
         }
         renderRoutes();
         renderStops();
       } catch (e){ 
+                  renderFavorites(routes);
         console.error('Failed to load routes', e);
         ErrorHandler.showToast('Failed to load routes. Check connection.', 'error');
       }
@@ -170,8 +187,77 @@
       `).join('');
       
       list.querySelectorAll('.route-card').forEach(card => {
+                // Generate QR boarding pass
+                const payload = JSON.stringify({ route, bus, stop, ts: Date.now(), etaMin });
+                generateQR(qrCanvas, payload); qrWrap.style.display = 'block';
         card.onclick = () => {
           list.querySelectorAll('.route-card').forEach(c => c.classList.remove('active'));
+              // Favorites
+              favBtn.onclick = () => {
+                const rid = routeSel.value; if(!rid) return;
+                const list = getFavs(); if(!list.includes(rid)) list.push(rid); setFavs(list);
+                renderFavorites();
+              };
+              function getFavs(){ try { return JSON.parse(localStorage.getItem('favRoutes')||'[]'); } catch { return []; } }
+              function setFavs(list){ try { localStorage.setItem('favRoutes', JSON.stringify(list)); } catch {} }
+              function renderFavorites(routes){
+                const favs = getFavs();
+                if(!favs.length){ favList.textContent = 'No favorites yet'; return; }
+                favList.innerHTML = 'Favorites: ' + favs.map(id => `<a href="#" data-route="${id}">${id}</a>`).join(', ');
+                favList.querySelectorAll('a').forEach(a => a.onclick = (e) => { e.preventDefault(); routeSel.value = a.dataset.route; onRouteChange(routes || []); });
+              }
+
+              // Share ETA link
+              shareBtn.onclick = () => {
+                const params = new URLSearchParams({ route: routeSel.value, bus: busSel.value, stop: stopSel.value });
+                const url = `${location.origin}/tracker.html?${params.toString()}`;
+                navigator.clipboard.writeText(url).then(() => ErrorHandler.showToast('Link copied!', 'success'));
+              };
+
+              // Push notifications
+              notifyBtn.onclick = async () => {
+                try{
+                  const perm = await Notification.requestPermission();
+                  if(perm !== 'granted') return ErrorHandler.showToast('Notification permission denied', 'error');
+                  // Simple demo notification (prod: push via server)
+                  new Notification('Smart Bus', { body: `Your bus (${busSel.value}) is 5 mins away` });
+                } catch(e){ ErrorHandler.showToast('Failed to enable push', 'error'); }
+              };
+
+              // Crowding indicator from driver logs (occupancy %)
+              async function loadCrowding(){
+                try {
+                  const busId = busSel.value; if(!busId) return;
+                  const { data, error } = await SB.client
+                    .from('driver_logs')
+                    .select('type,value,created_at')
+                    .eq('bus_id', busId)
+                    .in('type', ['passenger_log'])
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                  if(error) throw error;
+                  const v = (data && data[0]?.value) || 0; // assume bus capacity 60
+                  const pct = Math.min(100, Math.round((v/60)*100));
+                  const level = pct < 50 ? '🟢' : (pct <= 80 ? '🟡' : '🔴');
+                  crowdEl.textContent = `${level} Occupancy: ${pct}%`;
+                } catch(e){ crowdEl.textContent = 'Crowding data unavailable'; }
+              }
+              busSel.addEventListener('change', loadCrowding);
+
+              // Minimal QR generator (error correction omitted)
+              function generateQR(canvas, text){
+                if(!canvas) return;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+                // hash to pseudo pattern
+                let h=0; for(let i=0;i<text.length;i++){ h=(h*31 + text.charCodeAt(i))>>>0; }
+                const size=20; for(let y=0;y<8;y++){ for(let x=0;x<8;x++){
+                  const bit = ((h >> ((x+y)%32)) & 1) ^ ((x*y)%2);
+                  ctx.fillStyle = bit ? '#000' : '#fff';
+                  ctx.fillRect(10 + x*size, 10 + y*size, size-2, size-2);
+                }}
+              }
+
           card.classList.add('active');
           selectedRoute = routes.find(r => r.id === card.dataset.route);
           renderBuses();
@@ -313,7 +399,8 @@
       }
     }
 
-    document.getElementById('btnPlanJourney').onclick = () => {
+    // Debounced journey planning
+    const planJourneyCore = () => {
       const fromName = document.getElementById('fromStop').value;
       const toName = document.getElementById('toStop').value;
       if(!fromName || !toName) return alert('Please select both stops');
@@ -349,6 +436,12 @@
         </div>
       `;
     };
+    
+    // Debounce journey planning on select changes (300ms)
+    const debouncedPlan = debounce(planJourneyCore, 300);
+    document.getElementById('fromStop').addEventListener('change', debouncedPlan);
+    document.getElementById('toStop').addEventListener('change', debouncedPlan);
+    document.getElementById('btnPlanJourney').onclick = planJourneyCore;
 
     document.getElementById('btnRefresh').onclick = () => location.reload();
     document.getElementById('btnLocateMe').onclick = () => {

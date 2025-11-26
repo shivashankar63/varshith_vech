@@ -21,6 +21,7 @@
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/errorHandler.js"></script>
+  <script src="assets/performance.js"></script>
   <script src="assets/config.js"></script>
   <script src="assets/supabaseClient.js"></script>
 </head>
@@ -112,14 +113,18 @@
             <span class="label">Last Update:</span>
             <span id="infoLastUpdate">–</span>
           </div>
-          <div class="bar-section">
-            <span class="label">Live:</span>
-            <span id="liveStatus" style="font-weight:600;color:#9aa4b2">Idle</span>
-          </div>
-          <div class="bar-section">
-            <span class="label">Connection:</span>
-            <span id="connectionIndicator" style="font-weight:600;color:#22c55e">Connected</span>
-          </div>
+            <div class="bar-section">
+              <span class="label">Presence:</span>
+              <span id="presenceCounter" style="font-weight:600;color:#9aa4b2">0 users watching this bus</span>
+            </div>
+            <div class="bar-section">
+              <span class="label">Live:</span>
+              <span id="liveStatus" style="font-weight:600;color:#9aa4b2">Idle</span>
+            </div>
+            <div class="bar-section">
+              <span class="label">Connection:</span>
+              <span id="connectionIndicator" style="font-weight:600;color:#22c55e">Connected</span>
+            </div>
         </div>
       </div>
 
@@ -132,6 +137,16 @@
         <h2 style="margin-top:0;font-size:16px">Service Announcements</h2>
         <div id="alertsList" style="font-size:13px;color:var(--muted)">No active alerts</div>
       </div>
+
+        <div class="card-inline">
+          <h2 style="margin-top:0;font-size:16px">Historical Playback (Last Hour)</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="range" id="historySlider" min="0" max="3600" value="0" style="flex:1" />
+            <button class="btn" id="btnPlayHistory">Play</button>
+            <button class="btn" id="btnStopHistory">Stop</button>
+          </div>
+          <small style="color:var(--muted)">Drag slider to scrub through past positions.</small>
+        </div>
     </section>
   </main>
 
