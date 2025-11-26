@@ -8,6 +8,8 @@
 alter table profiles enable row level security;
 create policy "read own profile" on profiles for select
   using (auth.uid() = id);
+create policy "insert own profile" on profiles for insert
+  with check (auth.uid() = id);
 create policy "update own profile" on profiles for update
   using (auth.uid() = id);
 
