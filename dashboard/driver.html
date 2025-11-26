@@ -70,9 +70,14 @@
     }
     .action-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 12px;
       margin-top: 12px;
+    }
+    @media (max-width: 768px) {
+      main > div > div {
+        grid-template-columns: 1fr !important;
+      }
     }
     .skeleton {
       background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
@@ -100,7 +105,8 @@
   </header>
 
   <main class="layout" role="main" style="grid-template-columns:1fr">
-    <div style="padding:20px;max-width:1200px;margin:0 auto">
+    <div style="padding:20px;width:100%;max-width:100%">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px;max-width:1400px;margin:0 auto">
       <section class="card" aria-labelledby="assignment-heading">
         <h2 id="assignment-heading">Your Bus Assignment</h2>
         <div id="assignmentInfo" class="info-grid">
@@ -155,9 +161,11 @@
         </div>
       </section>
 
-      <section class="card" aria-labelledby="map-heading">
+      </div>
+      
+      <section class="card" aria-labelledby="map-heading" style="margin-top:20px;max-width:1400px;margin-left:auto;margin-right:auto">
         <h2 id="map-heading">Your Route Map</h2>
-        <div id="driverMap" style="height:450px;border-radius:12px;overflow:hidden" 
+        <div id="driverMap" style="height:500px;border-radius:12px;overflow:hidden" 
              role="region" aria-label="Interactive route map"></div>
       </section>
     </div>
