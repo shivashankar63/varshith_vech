@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Driver Dashboard – Smart Bus Tracking</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+  <link rel="icon" href="../assets/icon.png" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body class="app dark">
+  <header class="app-header" role="banner">
+    <div class="brand">
+      <img src="../assets/images/bus.svg" alt="Bus" class="brand-icon" />
+      <h1>Driver Dashboard</h1>
+    </div>
+    <div class="header-actions">
+      <span id="driverName" style="margin-right:12px;color:var(--muted)">Driver</span>
+      <button id="btnLogout" class="btn">Logout</button>
+    </div>
+  </header>
+
+  <main class="layout" role="main" style="grid-template-columns:1fr">
+    <div style="padding:20px;max-width:1200px;margin:0 auto">
+      <section class="card">
+        <h2>Your Bus Assignment</h2>
+        <div id="assignmentInfo" class="list">
+          <div><strong>Bus ID:</strong> <span id="busId">–</span></div>
+          <div><strong>Route:</strong> <span id="routeInfo">–</span></div>
+          <div><strong>Phone:</strong> <span id="driverPhone">–</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Location Sharing</h2>
+        <div style="margin-bottom:12px">
+          <button id="btnStartSharing" class="btn" style="background:var(--accent-2)">Start Sharing Location</button>
+          <button id="btnStopSharing" class="btn btn-danger" disabled>Stop Sharing</button>
+        </div>
+        <div id="sharingStatus" style="color:var(--muted);font-size:14px">Status: Not sharing</div>
+      </section>
+
+      <section class="card">
+        <h2>Quick Actions</h2>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button id="btnEmergency" class="btn btn-danger" aria-label="Report emergency">Report Emergency</button>
+          <button id="btnViewRoute" class="btn" aria-label="View route map">View Route Map</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Your Route Map</h2>
+        <div id="driverMap" style="height:400px;border-radius:12px;overflow:hidden"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Emergency Modal -->
+  <dialog id="emergencyModal" class="modal">
+    <form method="dialog" class="modal-card" id="emergencyForm">
+      <header>
+        <h3>Report Emergency</h3>
+      </header>
+      <div class="modal-body">
+        <div class="field">
+          <label for="emType">Type</label>
+          <select id="emType" required aria-label="Emergency type">
+            <option value="breakdown">Breakdown</option>
+            <option value="accident">Accident</option>
+            <option value="medical">Medical Emergency</option>
+            <option value="traffic">Severe Traffic</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="emNotes">Details</label>
+          <textarea id="emNotes" rows="3" placeholder="Describe the situation..." aria-label="Emergency details"></textarea>
+        </div>
+      </div>
+      <footer class="modal-actions">
+        <button type="submit" class="btn btn-danger">Send Alert</button>
+        <button type="button" class="btn btn-ghost" id="btnCloseModal">Cancel</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../assets/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_URL = "https://xeibdoqrxpqgdwuackfc.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlaWJkb3FyeHBxZ2R3dWFja2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNzYyNTAsImV4cCI6MjA3OTc1MjI1MH0.J3b3xaAa532E03mUYHjFabBhd7kwNvoLkoSQJ0CX04k";
+  </script>
+  <script src="../assets/supabaseClient.js"></script>
+  <script>
+    // Driver dashboard logic
+    let map, busMarker, routePolyline;
+    let sharingInterval = null;
+
+    function toast(msg){
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2000);
+    }
+
+    async function init(){
+      // Check auth
+      const session = Auth.getSession();
+      if(!session || session.role !== 'driver'){
+        alert('Please login as a driver.');
+        location.href = '../auth/login-driver.html';
+        return;
+      }
+
+      // Display driver info
+      document.getElementById('driverName').textContent = session.fullName || 'Driver';
+      document.getElementById('busId').textContent = session.busId || '–';
+      document.getElementById('driverPhone').textContent = session.phone || '–';
+      document.getElementById('routeInfo').textContent = 'Loading...';
+
+      // Load route info
+      if(window.SB && typeof SB.getRoutesWithDetails === 'function'){
+        try{
+          const routes = await SB.getRoutesWithDetails();
+          const route = routes.find(r => r.buses?.some(b => b.id === session.busId));
+          if(route){
+            document.getElementById('routeInfo').textContent = route.name || route.code || 'N/A';
+            renderMap(route);
+          } else {
+            document.getElementById('routeInfo').textContent = 'Not assigned';
+          }
+        } catch(e){
+          console.error('Failed to load route', e);
+          document.getElementById('routeInfo').textContent = 'Error loading';
+        }
+      }
+
+      // Buttons
+      document.getElementById('btnStartSharing').onclick = startSharing;
+      document.getElementById('btnStopSharing').onclick = stopSharing;
+      document.getElementById('btnEmergency').onclick = () => document.getElementById('emergencyModal').showModal();
+      document.getElementById('btnCloseModal').onclick = () => document.getElementById('emergencyModal').close();
+      document.getElementById('emergencyForm').onsubmit = sendEmergency;
+      document.getElementById('btnLogout').onclick = () => { Auth.clear(); location.href = '../index.html'; };
+      document.getElementById('btnViewRoute').onclick = () => {
+        if(map) map.invalidateSize();
+      };
+    }
+
+    function renderMap(route){
+      if(!map){
+        map = L.map('driverMap').setView([17.385, 78.4867], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+      }
+      
+      if(route.stops && route.stops.length > 0){
+        const path = route.stops.map(s => [s.lat, s.lng]);
+        if(routePolyline) map.removeLayer(routePolyline);
+        routePolyline = L.polyline(path, { color: '#22c55e', weight: 4 }).addTo(map);
+        map.fitBounds(routePolyline.getBounds(), { padding: [20,20] });
+        
+        // Add markers for stops
+        route.stops.forEach(s => {
+          L.marker([s.lat, s.lng]).bindPopup(s.name).addTo(map);
+        });
+      }
+    }
+
+    function startSharing(){
+      if(!navigator.geolocation){
+        return toast('Geolocation not supported');
+      }
+
+      document.getElementById('btnStartSharing').disabled = true;
+      document.getElementById('btnStopSharing').disabled = false;
+      document.getElementById('sharingStatus').textContent = 'Status: Sharing location...';
+      document.getElementById('sharingStatus').style.color = '#22c55e';
+
+      sharingInterval = setInterval(async () => {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          const speed = pos.coords.speed ? (pos.coords.speed * 3.6).toFixed(1) : 0;
+          
+          // Update marker on map
+          if(!busMarker && map){
+            busMarker = L.marker([latitude, longitude]).addTo(map).bindPopup('Your location');
+          } else if(busMarker){
+            busMarker.setLatLng([latitude, longitude]);
+          }
+
+          // Send to Supabase if available
+          if(window.SB && typeof SB.bulkUpsertPositions === 'function'){
+            try{
+              const session = Auth.getSession();
+              await SB.bulkUpsertPositions([{
+                bus_id: session.busId,
+                lat: latitude,
+                lng: longitude,
+                speed: parseFloat(speed),
+                created_at: new Date().toISOString()
+              }]);
+            } catch(e){
+              console.warn('Failed to send position', e);
+            }
+          }
+        }, (err) => {
+          console.error('Geolocation error', err);
+        });
+      }, 5000); // Update every 5 seconds
+
+      toast('Started sharing location');
+    }
+
+    function stopSharing(){
+      if(sharingInterval){
+        clearInterval(sharingInterval);
+        sharingInterval = null;
+      }
+      document.getElementById('btnStartSharing').disabled = false;
+      document.getElementById('btnStopSharing').disabled = true;
+      document.getElementById('sharingStatus').textContent = 'Status: Not sharing';
+      document.getElementById('sharingStatus').style.color = 'var(--muted)';
+      toast('Stopped sharing location');
+    }
+
+    function sendEmergency(e){
+      e.preventDefault();
+      const type = document.getElementById('emType').value;
+      const notes = document.getElementById('emNotes').value;
+      
+      (async () => {
+        try{
+          const session = Auth.getSession();
+          if(window.SB && typeof SB.createAlert === 'function'){
+            await SB.createAlert({ busId: session.busId, type, notes });
+            toast('Emergency alert sent!');
+          } else {
+            console.log('EMERGENCY', { busId: session.busId, type, notes });
+            toast('Emergency logged (demo mode)');
+          }
+          document.getElementById('emergencyModal').close();
+        } catch(err){
+          console.error('Alert failed', err);
+          toast('Failed to send alert');
+        }
+      })();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
