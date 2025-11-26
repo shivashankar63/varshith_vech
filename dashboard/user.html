@@ -18,10 +18,8 @@
     .section-title{font-size:13px;color:var(--muted);margin:12px 0 6px;font-weight:600;text-transform:uppercase}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    window.SUPABASE_URL = "https://xeibdoqrxpqgdwuackfc.supabase.co";
-    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlaWJkb3FyeHBxZ2R3dWFja2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNzYyNTAsImV4cCI6MjA3OTc1MjI1MH0.J3b3xaAa532E03mUYHjFabBhd7kwNvoLkoSQJ0CX04k";
-  </script>
+  <script src="../assets/errorHandler.js"></script>
+  <script src="../assets/config.js"></script>
   <script src="../assets/supabaseClient.js"></script>
   
 </head>
@@ -45,6 +43,9 @@
 
       <div class="section-title">🚍 Select Bus</div>
       <div id="busesList"></div>
+
+      <div class="section-title">⏱️ Live Arrivals</div>
+      <div id="arrivalBoard" style="font-size:12px;color:var(--muted)">Select a route to see arrivals</div>
 
       <div class="section-title">🗺️ Journey Planner</div>
       <div class="card" style="margin-top:6px">
@@ -129,20 +130,34 @@
     document.getElementById('userInfo').textContent = `${session.userType === 'faculty' ? 'Faculty' : 'Student'} • ${session.userId} • ${session.email}`;
 
     let routes, selectedRoute = null, selectedBus = null;
+    let busSubs = {}; // subscriptions by busId
+    let busPositions = {}; // latest positions by busId
+    let liveMode = false;
 
-    // Load route data (prefer Supabase)
+    // Load route data with retry and cache
     (async () => {
       try {
         if(window.SB && typeof SB.getRoutesWithDetails === 'function'){
-          routes = await SB.getRoutesWithDetails();
+          routes = await ErrorHandler.withRetry(() => SB.getRoutesWithDetails(), 'getRoutes');
+          liveMode = true;
+          CacheManager.cacheRoutes(routes);
         } else {
-          const res = await fetch('../assets/data/routes.json');
-          const data = await res.json();
-          routes = data.routes;
+          const cached = CacheManager.getCachedRoutes();
+          if(cached){
+            routes = cached;
+            ErrorHandler.showToast('Using cached routes', 'info');
+          } else {
+            const res = await fetch('../assets/data/routes.json');
+            const data = await res.json();
+            routes = data.routes;
+          }
         }
         renderRoutes();
         renderStops();
-      } catch (e){ console.error('Failed to load routes', e); }
+      } catch (e){ 
+        console.error('Failed to load routes', e);
+        ErrorHandler.showToast('Failed to load routes. Check connection.', 'error');
+      }
     })();
 
     function renderRoutes(){
@@ -172,9 +187,9 @@
         <div class="bus-card" data-bus="${b.id}">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <strong style="font-size:13px">🚌 ${b.name || b.id}</strong>
-            <span class="eta-badge">Live</span>
+            <span class="eta-badge" id="bus-eta-${b.id}">--</span>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">Driver: <em>unknown</em></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Driver: ${b.driver ? b.driver.name : 'unknown'}</div>
         </div>
       `).join('');
 
@@ -186,6 +201,22 @@
           showBusOnMap();
         };
       });
+
+      // Subscribe to all buses on route if live mode
+      if(liveMode && window.SB){
+        // Unsubscribe previous
+        Object.values(busSubs).forEach(ch => { try{ ch.unsubscribe(); } catch{} });
+        busSubs = {};
+        (selectedRoute.buses || []).forEach(b => {
+          busSubs[b.id] = SB.subscribeBusPositions(b.id, (payload) => {
+            const row = payload && (payload.new || payload.record || payload);
+            if(!row) return;
+            busPositions[b.id] = { lat: row.lat, lng: row.lng, speed: row.speed, updated: new Date() };
+            updateArrivals();
+          });
+        });
+      }
+      updateArrivals();
     }
 
     function renderStops(){
@@ -204,32 +235,116 @@
       // Route selected; visuals available in Live Map.
     }
 
+    function updateArrivals(){
+      if(!selectedRoute) return;
+      const board = document.getElementById('arrivalBoard');
+      const stops = selectedRoute.stops || [];
+      if(stops.length === 0){ board.textContent = 'No stops available'; return; }
+      
+      // Build arrival table per stop
+      let html = '';
+      stops.slice(0, 5).forEach(stop => {
+        const arrivals = [];
+        (selectedRoute.buses || []).forEach(bus => {
+          const pos = busPositions[bus.id];
+          if(pos){
+            const eta = computeETA(pos, stop, selectedRoute);
+            arrivals.push({ bus: bus.name || bus.id, eta });
+          } else {
+            arrivals.push({ bus: bus.name || bus.id, eta: '--' });
+          }
+        });
+        arrivals.sort((a,b) => (typeof a.eta === 'number' ? a.eta : 999) - (typeof b.eta === 'number' ? b.eta : 999));
+        html += `<div style="margin:6px 0;padding:6px;background:#0b1220;border-radius:6px">
+          <strong style="font-size:11px">${stop.name}</strong>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">`;
+        arrivals.forEach(a => {
+          html += `${a.bus}: <span class="eta-badge" style="font-size:10px">${typeof a.eta === 'number' ? formatDuration(a.eta) : a.eta}</span> `;
+        });
+        html += `</div></div>`;
+      });
+      board.innerHTML = html || 'Waiting for live data...';
+    }
+
+    function computeETA(busPos, stop, route){
+      // Simple heuristic: haversine distance / average speed
+      const d = haversine([busPos.lat, busPos.lng], [stop.lat, stop.lng]);
+      const speedMs = (busPos.speed || 30) * (1000/3600); // km/h to m/s
+      return d / speedMs; // seconds
+    }
+
+    function haversine(a, b){
+      const R = 6371000;
+      const toRad = d => d*Math.PI/180;
+      const dLat = toRad(b[0]-a[0]);
+      const dLng = toRad(b[1]-a[1]);
+      const lat1 = toRad(a[0]);
+      const lat2 = toRad(b[0]);
+      const sa = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+      return 2*R*Math.asin(Math.sqrt(sa));
+    }
+
+    function formatDuration(sec){
+      sec = Math.max(0, Math.round(sec));
+      const m = Math.floor(sec/60); const s = sec%60;
+      if(m >= 60){ const h = Math.floor(m/60); const mm = m%60; return `${h}h ${mm}m`; }
+      if(m >= 1) return `${m}m`;
+      return `${s}s`;
+    }
+
     function showBusOnMap(){
       if(!selectedBus || !selectedRoute) return;
       document.getElementById('selectedBusInfo').style.display = 'block';
-      document.getElementById('infoBusName').textContent = selectedBus.name;
+      document.getElementById('infoBusName').textContent = selectedBus.name || selectedBus.id;
       document.getElementById('infoRoute').textContent = selectedRoute.name;
-      document.getElementById('infoSpeed').textContent = '32';
-      const nextStop = (selectedRoute.stops && selectedRoute.stops[1]) ? selectedRoute.stops[1].name : '—';
-      document.getElementById('infoNextStop').textContent = nextStop;
-      document.getElementById('infoETA').textContent = '8 min';
+      
+      const pos = busPositions[selectedBus.id];
+      const speed = pos ? (pos.speed || 0) : 0;
+      document.getElementById('infoSpeed').textContent = speed.toFixed ? speed.toFixed(0) : speed;
+      
+      const nextStop = (selectedRoute.stops && selectedRoute.stops[1]) ? selectedRoute.stops[1] : null;
+      document.getElementById('infoNextStop').textContent = nextStop ? nextStop.name : '—';
+      
+      if(pos && nextStop){
+        const eta = computeETA(pos, nextStop, selectedRoute);
+        document.getElementById('infoETA').textContent = formatDuration(eta);
+      } else {
+        document.getElementById('infoETA').textContent = '--';
+      }
     }
 
     document.getElementById('btnPlanJourney').onclick = () => {
-      const from = document.getElementById('fromStop').value;
-      const to = document.getElementById('toStop').value;
-      if(!from || !to) return alert('Please select both stops');
+      const fromName = document.getElementById('fromStop').value;
+      const toName = document.getElementById('toStop').value;
+      if(!fromName || !toName) return alert('Please select both stops');
       
+      // Find stops across all routes
+      let fromStop = null, toStop = null, bestRoute = null;
+      routes.forEach(r => {
+        r.stops.forEach(s => {
+          if(s.name === fromName) fromStop = s;
+          if(s.name === toName) toStop = s;
+        });
+        if(fromStop && toStop && !bestRoute) bestRoute = r;
+      });
+      if(!fromStop || !toStop) return alert('Stops not found');
+
+      const dist = haversine([fromStop.lat, fromStop.lng], [toStop.lat, toStop.lng]);
+      const avgSpeed = 30; // km/h
+      const etaSec = (dist / 1000) / avgSpeed * 3600; // seconds
+      const recBus = bestRoute && bestRoute.buses && bestRoute.buses[0] ? (bestRoute.buses[0].name || bestRoute.buses[0].id) : 'N/A';
+
       const result = document.getElementById('journeyResult');
       result.style.display = 'block';
       result.innerHTML = `
         <div class="card">
-          <h4 style="margin:0 0 8px;font-size:13px">📍 ${from} → ${to}</h4>
+          <h4 style="margin:0 0 8px;font-size:13px">📍 ${fromName} → ${toName}</h4>
           <div style="font-size:13px">
-            <div style="margin:4px 0"><strong>Recommended Bus:</strong> Bus A1</div>
-            <div style="margin:4px 0"><strong>Distance:</strong> 5.2 km</div>
-            <div style="margin:4px 0"><strong>ETA:</strong> <span class="eta-badge">12 min</span></div>
-            <div style="margin:4px 0;color:var(--muted)">Next departure: 5 mins</div>
+            <div style="margin:4px 0"><strong>Route:</strong> ${bestRoute ? bestRoute.name : 'N/A'}</div>
+            <div style="margin:4px 0"><strong>Recommended Bus:</strong> ${recBus}</div>
+            <div style="margin:4px 0"><strong>Distance:</strong> ${(dist/1000).toFixed(1)} km</div>
+            <div style="margin:4px 0"><strong>ETA:</strong> <span class="eta-badge">${formatDuration(etaSec)}</span></div>
+            <div style="margin:4px 0;color:var(--muted)">Based on avg speed ${avgSpeed} km/h</div>
           </div>
         </div>
       `;

@@ -14,8 +14,13 @@
     .map{height:450px;min-height:360px;border-radius:12px;overflow:hidden}
     .map-wrap{display:flex;flex-direction:column;gap:12px}
     .card-inline{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px}
+    .offline-banner{position:fixed;top:0;left:0;right:0;background:#ef4444;color:white;padding:12px;text-align:center;font-weight:600;z-index:9999;animation:slideDown 0.3s}
+    @keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+    .toast-error{background:#ef4444 !important}
+    .toast-success{background:#22c55e !important}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/errorHandler.js"></script>
   <script src="assets/config.js"></script>
   <script src="assets/supabaseClient.js"></script>
 </head>
@@ -107,10 +112,14 @@
             <span class="label">Last Update:</span>
             <span id="infoLastUpdate">–</span>
           </div>
-            <div class="bar-section">
-              <span class="label">Live:</span>
-              <span id="liveStatus" style="font-weight:600;color:#9aa4b2">Idle</span>
-            </div>
+          <div class="bar-section">
+            <span class="label">Live:</span>
+            <span id="liveStatus" style="font-weight:600;color:#9aa4b2">Idle</span>
+          </div>
+          <div class="bar-section">
+            <span class="label">Connection:</span>
+            <span id="connectionIndicator" style="font-weight:600;color:#22c55e">Connected</span>
+          </div>
         </div>
       </div>
 
@@ -158,5 +167,13 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="assets/app.js"></script>
+  <script>
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        console.log('[SW] Registered:', reg.scope);
+      }).catch(err => console.warn('[SW] Registration failed:', err));
+    }
+  </script>
 </body>
 </html>

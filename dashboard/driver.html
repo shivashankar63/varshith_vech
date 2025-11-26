@@ -179,25 +179,35 @@
     let simTimer = null, simT = 0; // simulation progression
     let currentPosition = null, speed = 0, trips = 4, distance = 87;
 
-    // Load route data based on assigned bus via Supabase (fallback to local JSON)
+    // Load route data with retry and cache
     (async () => {
       try {
         if(window.SB && typeof SB.getRoutesWithDetails === 'function'){
-          const routes = await SB.getRoutesWithDetails();
+          const routes = await ErrorHandler.withRetry(() => SB.getRoutesWithDetails(), 'getRoutes');
           const busIdLower = String(session.busId || '').toLowerCase();
           routeData = routes.find(r => Array.isArray(r.buses) && r.buses.some(b => {
             return [b.id, b.code, b.name].filter(Boolean).some(x => String(x).toLowerCase().includes(busIdLower));
           })) || routes[0];
+          CacheManager.cacheRoutes(routes);
         } else {
-          const res = await fetch('../assets/data/routes.json');
-          const data = await res.json();
-          routeData = data.routes.find(r => r.buses.some(b => (b.id || '').toLowerCase().includes(String(session.busId || '').toLowerCase()))) || data.routes[0];
+          const cached = CacheManager.getCachedRoutes();
+          if(cached){
+            const busIdLower = String(session.busId || '').toLowerCase();
+            routeData = cached.find(r => Array.isArray(r.buses) && r.buses.some(b => {
+              return [b.id, b.code, b.name].filter(Boolean).some(x => String(x).toLowerCase().includes(busIdLower));
+            })) || cached[0];
+          } else {
+            const res = await fetch('../assets/data/routes.json');
+            const data = await res.json();
+            routeData = data.routes.find(r => r.buses.some(b => (b.id || '').toLowerCase().includes(String(session.busId || '').toLowerCase()))) || data.routes[0];
+          }
         }
         document.getElementById('routeName').textContent = routeData.name;
         document.getElementById('totalStops').textContent = (routeData.stops || []).length;
         renderStops();
       } catch (err){
         console.error('Failed to load route data', err);
+        ErrorHandler.showToast('Failed to load route. Check connection.', 'error');
         document.getElementById('routeName').textContent = 'Unavailable';
       }
     })();
@@ -234,13 +244,14 @@
         distance += parseFloat(speed) / 60;
         document.getElementById('statDistance').textContent = distance.toFixed(0) + ' km';
 
-        // Post live position to Supabase if available
+        // Post live position with retry
         try {
           if(window.SB && typeof SB.postBusPosition === 'function'){
-            await SB.postBusPosition(session.busId, latitude, longitude, parseFloat(speed), 0);
+            await ErrorHandler.withRetry(() => SB.postBusPosition(session.busId, latitude, longitude, parseFloat(speed), 0), 'postPosition');
+            ConnectionMonitor.updatePing();
           }
         } catch (e){
-          console.warn('Position post failed', e);
+          console.warn('Position post failed after retries', e);
         }
         }, err => {
           console.error(err);
@@ -327,9 +338,10 @@
         document.getElementById('statDistance').textContent = distance.toFixed(0) + ' km';
         try {
           if(window.SB && typeof SB.postBusPosition === 'function'){
-            await SB.postBusPosition(session.busId, latitude, longitude, parseFloat(speed), 0);
+            await ErrorHandler.withRetry(() => SB.postBusPosition(session.busId, latitude, longitude, parseFloat(speed), 0), 'postPosition');
+            ConnectionMonitor.updatePing();
           }
-        } catch(e){ console.warn('Sim position post failed', e); }
+        } catch(e){ console.warn('Sim position post failed after retries', e); }
       }, 1000);
     }
 
