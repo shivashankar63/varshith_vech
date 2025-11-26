@@ -4,6 +4,19 @@
 
 -- Example tables: profiles, buses, drivers, positions, alerts, assignments
 
+-- Create profiles table if not exists
+-- Run this first before policies:
+/*
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name text,
+  phone text,
+  role text DEFAULT 'user',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+*/
+
 -- Profiles table: users and drivers
 -- Disable RLS temporarily or use service role for profile operations
 alter table profiles enable row level security;
@@ -92,20 +105,24 @@ create policy "admin resolve" on alerts for update using (
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name, phone, role, created_at, updated_at)
-  VALUES (
-    new.id,
-    COALESCE(new.raw_user_meta_data->>'full_name', ''),
-    COALESCE(new.raw_user_meta_data->>'phone', ''),
-    COALESCE(new.raw_user_meta_data->>'role', 'user'),
-    now(),
-    now()
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    full_name = EXCLUDED.full_name,
-    phone = EXCLUDED.phone,
-    role = EXCLUDED.role,
-    updated_at = now();
+  -- Try to insert profile, if it fails just continue (don't block signup)
+  BEGIN
+    INSERT INTO public.profiles (id, full_name, phone, role)
+    VALUES (
+      new.id,
+      COALESCE(new.raw_user_meta_data->>'full_name', ''),
+      COALESCE(new.raw_user_meta_data->>'phone', ''),
+      COALESCE(new.raw_user_meta_data->>'role', 'user')
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      full_name = EXCLUDED.full_name,
+      phone = EXCLUDED.phone,
+      role = EXCLUDED.role;
+  EXCEPTION
+    WHEN others THEN
+      -- Log error but don't block user creation
+      RAISE WARNING 'Could not create profile for user %: %', new.id, SQLERRM;
+  END;
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
