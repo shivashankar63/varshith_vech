@@ -46,6 +46,22 @@
 		if(error) throw error; return data;
 	};
 
+	// Profile helpers for auth
+	SB.getProfile = async () => {
+		const { data: { user } } = await client.auth.getUser();
+		if(!user) return null;
+		const { data, error } = await client.from('profiles').select('*').eq('id', user.id).single();
+		if(error && error.code !== 'PGRST116') throw error;
+		return data;
+	};
+	SB.upsertProfile = async (profile) => {
+		const { data: { user } } = await client.auth.getUser();
+		if(!user) throw new Error('No authenticated user');
+		const { data, error } = await client.from('profiles').upsert({ id: user.id, ...profile }, { onConflict: 'id' }).select('*').single();
+		if(error) throw error;
+		return data;
+	};
+
 	// Presence example using Realtime channel
 	SB.onPresence = (busId, onCount) => {
 		const channel = client.channel(`presence:${busId}`, { config: { presence: { key: busId } } });
