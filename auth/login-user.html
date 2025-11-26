@@ -26,10 +26,10 @@
       </div>
       <p class="muted">Students and Faculty — sign in to view live buses, ETAs, routes, and notifications.</p>
 
-      <form id="userLoginForm" class="form">
+      <form id="userLoginForm" class="form" aria-label="User login form">
         <div class="field">
           <label for="userType">I am a</label>
-          <select id="userType" required>
+          <select id="userType" required aria-label="Select user type" title="Select user type">
             <option value="student">Student</option>
             <option value="faculty">Faculty</option>
           </select>
@@ -37,20 +37,20 @@
         <div class="row">
           <div class="field">
             <label for="userId">ID Number</label>
-            <input id="userId" placeholder="e.g., STU12345" required style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+            <input id="userId" placeholder="e.g., STU12345" required aria-label="ID number" title="ID number" style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
           </div>
           <div class="field">
             <label for="email">Email</label>
-            <input id="email" type="text" placeholder="you@college.edu" required style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+            <input id="email" type="text" placeholder="you@college.edu" required aria-label="Email" title="Email" style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
           </div>
         </div>
         <div class="field">
           <label for="password">Password</label>
-          <input id="password" type="password" placeholder="••••••••" required style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+          <input id="password" type="password" placeholder="••••••••" required aria-label="Password" title="Password" style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
         </div>
         <div class="actions">
           <a class="link" href="../index.html">← Back to home</a>
-          <button class="btn" type="submit">Sign In</button>
+          <button class="btn" type="submit" aria-label="Sign in" title="Sign in">Sign In</button>
         </div>
         <p class="muted" style="margin-top:12px;text-align:center">
           Don't have an account? <a href="signup-user.html" class="link">Sign up here</a>

@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Bus Tracking System</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3b82f6" />
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -57,7 +60,7 @@
         <span>Smart Bus Tracking</span>
       </div>
       <div class="nav-links">
-        <a href="tracker.html" class="btn btn-outline">View Live Map</a>
+        <a href="tracker.html" class="btn btn-outline" aria-label="View live map" title="View live map">View Live Map</a>
       </div>
     </nav>
 
@@ -67,10 +70,10 @@
         <p class="tagline">Know exactly when your bus arrives. Track live locations, get accurate ETAs, and travel smarter with our GPS-powered system.</p>
         
         <div class="cta-group">
-          <a href="auth/login-user.html" class="btn btn-primary cta-btn">User Login</a>
-          <a href="auth/signup-user.html" class="btn btn-outline cta-btn">User Signup</a>
-          <a href="auth/login-driver.html" class="btn btn-primary cta-btn">Driver Login</a>
-          <a href="auth/signup-driver.html" class="btn btn-outline cta-btn">Driver Signup</a>
+          <a href="auth/login-user.html" class="btn btn-primary cta-btn" aria-label="User login" title="User login">User Login</a>
+          <a href="auth/signup-user.html" class="btn btn-outline cta-btn" aria-label="User signup" title="User signup">User Signup</a>
+          <a href="auth/login-driver.html" class="btn btn-primary cta-btn" aria-label="Driver login" title="Driver login">Driver Login</a>
+          <a href="auth/signup-driver.html" class="btn btn-outline cta-btn" aria-label="Driver signup" title="Driver signup">Driver Signup</a>
         </div>
 
         <div class="features">
@@ -117,6 +120,20 @@
 
   <footer>
     <p>&copy; 2025 Smart Bus Tracking System. A GPS-GSM based real-time vehicle tracking solution.</p>
+    <div id="carbonStats" style="margin-top:8px;color:#9ca3af"></div>
   </footer>
+  <script src="assets/analytics.js"></script>
+  <script>
+    (async function(){
+      try{
+        const res = await fetch('assets/data/routes.json');
+        const data = await res.json();
+        const route = data.routes?.[0] || data;
+        const c = Analytics.carbonSummary(route);
+        const el = document.getElementById('carbonStats');
+        el.innerHTML = `Estimated CO₂ saved today: <strong>${c.savedTon.toFixed(2)}</strong> tons`;
+      }catch(e){ /* silently ignore */ }
+    })();
+  </script>
 </body>
 </html>

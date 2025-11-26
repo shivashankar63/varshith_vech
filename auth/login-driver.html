@@ -26,11 +26,11 @@
       </div>
       <p class="muted">Drivers — sign in to send location, see traffic, and access the emergency module.</p>
 
-      <form id="driverLoginForm" class="form">
+      <form id="driverLoginForm" class="form" aria-label="Driver login form">
         <div class="row">
           <div class="field">
             <label for="busId">Bus</label>
-            <select id="busId" required>
+            <select id="busId" required aria-label="Select bus" title="Select bus">
               <option value="A1">A1</option>
               <option value="A2">A2</option>
               <option value="B1">B1</option>
@@ -38,20 +38,20 @@
           </div>
           <div class="field">
             <label for="driverEmail">Email</label>
-            <input id="driverEmail" type="text" placeholder="driver@transport.com" style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+            <input id="driverEmail" type="text" placeholder="driver@transport.com" aria-label="Email" title="Email" style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
           </div>
         </div>
         <div class="field">
           <label for="driverPhone">Phone (optional)</label>
-          <input id="driverPhone" placeholder="+91-90000-00000" style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+          <input id="driverPhone" placeholder="+91-90000-00000" aria-label="Phone" title="Phone" style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
         </div>
         <div class="field">
           <label for="driverPass">Password</label>
-          <input id="driverPass" type="password" placeholder="••••••••" required style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
+          <input id="driverPass" type="password" placeholder="••••••••" required aria-label="Password" title="Password" style="background:#0b1220;color:#e5e7eb;border:1px solid var(--border);padding:8px;border-radius:8px" />
         </div>
         <div class="actions">
           <a class="link" href="../index.html">← Back to home</a>
-          <button class="btn" type="submit">Sign In</button>
+          <button class="btn" type="submit" aria-label="Sign in" title="Sign in">Sign In</button>
         </div>
         <p class="muted" style="margin-top:12px;text-align:center">
           Don't have an account? <a href="signup-driver.html" class="link">Sign up here</a>

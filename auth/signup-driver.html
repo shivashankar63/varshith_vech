@@ -29,21 +29,21 @@
       </div>
       <p class="muted">Drivers — register to start sharing location, viewing traffic, and managing routes.</p>
 
-      <form id="driverSignupForm" class="form" style="margin-top:16px">
+      <form id="driverSignupForm" class="form" style="margin-top:16px" aria-label="Driver signup form">
         <div class="row">
           <div class="field">
             <label for="fullName">Full Name</label>
-            <input id="fullName" placeholder="Suresh Kumar" required />
+            <input id="fullName" placeholder="Suresh Kumar" required aria-label="Full name" title="Full name" />
           </div>
           <div class="field">
             <label for="driverId">Driver ID</label>
-            <input id="driverId" placeholder="DRV001" required />
+            <input id="driverId" placeholder="DRV001" required aria-label="Driver ID" title="Driver ID" />
           </div>
         </div>
         <div class="row">
           <div class="field">
             <label for="busId">Assigned Bus</label>
-            <select id="busId" required>
+            <select id="busId" required aria-label="Assigned bus" title="Assigned bus">
               <option value="">Select Bus</option>
               <option value="A1">Bus A1</option>
               <option value="A2">Bus A2</option>
@@ -52,26 +52,26 @@
           </div>
           <div class="field">
             <label for="phone">Phone</label>
-            <input id="phone" type="tel" placeholder="+91-90000-00000" required />
+            <input id="phone" type="tel" placeholder="+91-90000-00000" required aria-label="Phone" title="Phone" />
           </div>
         </div>
         <div class="field">
           <label for="email">Email (optional)</label>
-          <input id="email" type="text" placeholder="driver@transport.com" />
+          <input id="email" type="text" placeholder="driver@transport.com" aria-label="Email" title="Email" />
         </div>
         <div class="row">
           <div class="field">
             <label for="password">Password</label>
-            <input id="password" type="password" placeholder="••••••••" required minlength="6" />
+            <input id="password" type="password" placeholder="••••••••" required minlength="6" aria-label="Password" title="Password" />
           </div>
           <div class="field">
             <label for="confirmPass">Confirm Password</label>
-            <input id="confirmPass" type="password" placeholder="••••••••" required />
+            <input id="confirmPass" type="password" placeholder="••••••••" required aria-label="Confirm password" title="Confirm password" />
           </div>
         </div>
         <div class="actions">
           <a class="link" href="../index.html">← Back to home</a>
-          <button class="btn btn-primary" type="submit">Sign Up</button>
+          <button class="btn btn-primary" type="submit" aria-label="Sign up" title="Sign up">Sign Up</button>
         </div>
         <p class="muted" style="margin-top:12px;text-align:center">
           Already have an account? <a href="login-driver.html" class="link">Login here</a>

@@ -29,10 +29,10 @@
       </div>
       <p class="muted">Students and Faculty — sign up to start tracking buses and viewing real-time ETAs.</p>
 
-      <form id="userSignupForm" class="form" style="margin-top:16px">
+      <form id="userSignupForm" class="form" style="margin-top:16px" aria-label="User signup form">
         <div class="field">
           <label for="userType">I am a</label>
-          <select id="userType" required>
+          <select id="userType" required aria-label="Select user type" title="Select user type">
             <option value="student">Student</option>
             <option value="faculty">Faculty</option>
           </select>
@@ -40,34 +40,34 @@
         <div class="row">
           <div class="field">
             <label for="fullName">Full Name</label>
-            <input id="fullName" placeholder="John Doe" required />
+            <input id="fullName" placeholder="John Doe" required aria-label="Full name" title="Full name" />
           </div>
           <div class="field">
             <label for="userId">ID Number</label>
-            <input id="userId" placeholder="STU12345" required />
+            <input id="userId" placeholder="STU12345" required aria-label="ID number" title="ID number" />
           </div>
         </div>
         <div class="field">
           <label for="email">Email</label>
-          <input id="email" type="text" placeholder="you@college.edu" required />
+          <input id="email" type="text" placeholder="you@college.edu" required aria-label="Email" title="Email" />
         </div>
         <div class="field">
           <label for="phone">Phone</label>
-          <input id="phone" type="tel" placeholder="+91-90000-00000" required />
+          <input id="phone" type="tel" placeholder="+91-90000-00000" required aria-label="Phone" title="Phone" />
         </div>
         <div class="row">
           <div class="field">
             <label for="password">Password</label>
-            <input id="password" type="password" placeholder="••••••••" required minlength="6" />
+            <input id="password" type="password" placeholder="••••••••" required minlength="6" aria-label="Password" title="Password" />
           </div>
           <div class="field">
             <label for="confirmPass">Confirm Password</label>
-            <input id="confirmPass" type="password" placeholder="••••••••" required />
+            <input id="confirmPass" type="password" placeholder="••••••••" required aria-label="Confirm password" title="Confirm password" />
           </div>
         </div>
         <div class="actions">
           <a class="link" href="../index.html">← Back to home</a>
-          <button class="btn btn-primary" type="submit">Sign Up</button>
+          <button class="btn btn-primary" type="submit" aria-label="Sign up" title="Sign up">Sign Up</button>
         </div>
         <p class="muted" style="margin-top:12px;text-align:center">
           Already have an account? <a href="login-user.html" class="link">Login here</a>

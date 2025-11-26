@@ -1,0 +1,13 @@
+{
+  "name": "Smart Bus Tracking",
+  "short_name": "Bus Track",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0a0e16",
+  "theme_color": "#3b82f6",
+  "description": "Real-time bus tracking with ETAs and alerts",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

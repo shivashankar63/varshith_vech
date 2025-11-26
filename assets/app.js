@@ -44,6 +44,42 @@ let state = {
   lastPositions: [] // keep recent positions for predictive ETA
 };
 let positionsChannel = null;
+// Rate limiting: max 60 updates per minute per bus
+const RateLimiter = (function(){
+  const buckets = new Map();
+  const MAX_PER_MIN = 60; // 60 updates/min
+  function allow(id){
+    const now = Date.now();
+    let b = buckets.get(id);
+    if(!b){ b = { wStart: now, count: 0 }; buckets.set(id, b); }
+    // slide window
+    if(now - b.wStart >= 60*1000){ b.wStart = now; b.count = 0; }
+    if(b.count >= MAX_PER_MIN) return false;
+    b.count++; return true;
+  }
+  return { allow };
+})();
+
+// Geofencing helpers
+let geoFence = { active: true, stop: null, inside: false };
+function updateGeofence(){
+  try{
+    if(!state.route || !state.route.stops || state.route.stops.length===0) return;
+    const p = userMarker ? userMarker.getLatLng() : null;
+    const ref = p ? [p.lat, p.lng] : (busMarker ? [busMarker.getLatLng().lat, busMarker.getLatLng().lng] : null);
+    if(!ref) return;
+    geoFence.stop = nearestStop(ref, state.route.stops);
+  }catch{}
+}
+function checkGeofence(){
+  if(!geoFence.active || !geoFence.stop || !userMarker) return;
+  const p = userMarker.getLatLng();
+  const d = haversine([p.lat, p.lng], [geoFence.stop.lat, geoFence.stop.lng]);
+  const wasInside = geoFence.inside; const nowInside = d <= 200;
+  geoFence.inside = nowInside;
+  if(nowInside && !wasInside){ toast(`Entered ${geoFence.stop.name} zone`); if('vibrate' in navigator){ try{ navigator.vibrate(20);}catch{} } }
+  if(!nowInside && wasInside){ toast(`Left ${geoFence.stop.name} zone`); }
+}
 
 init();
 
@@ -85,6 +121,8 @@ async function init(){
   const busParam = params.get('bus');
 
   els.routeSelect.innerHTML = state.data.routes.map(r => `<option value="${r.id || r.code}">${r.name}</option>`).join('');
+  // Enable controls once routes are loaded
+  try { els.busSelect.disabled = false; document.getElementById('trafficToggle').disabled = false; document.getElementById('altRouteToggle').disabled = false; } catch{}
   if(routeParam){ els.routeSelect.value = routeParam; }
   onRouteChange();
   if(busParam){ els.busSelect.value = busParam; }
@@ -92,15 +130,50 @@ async function init(){
 
   // Events
   els.routeSelect.addEventListener('change', onRouteChange);
-  els.busSelect.addEventListener('change', onBusChange);
+  // Debounce bus change to avoid toast spam
+  let busChangeTimer = null;
+  els.busSelect.addEventListener('change', () => {
+    clearTimeout(busChangeTimer);
+    busChangeTimer = setTimeout(() => {
+      onBusChange();
+      try{ UI.toast && UI.toast(`Bus changed to ${els.busSelect.value}`, 'info'); }catch{}
+      // Brief pulse on main bus marker for confirmation
+      try{
+        if(busMarker && busMarker._icon){
+          const el = busMarker._icon.firstChild;
+          el.style.transition = 'transform .25s ease';
+          el.style.transform = 'scale(1.2)';
+          setTimeout(()=>{ el.style.transform = 'scale(1)'; }, 250);
+        }
+      }catch{}
+    }, 150);
+  });
   const busMulti = document.getElementById('busMulti');
   if(busMulti){ busMulti.addEventListener('change', onBusMultiChange); }
   els.trafficToggle.addEventListener('change', onTrafficToggle);
   els.altRouteToggle.addEventListener('change', onAltRouteToggle);
+  // Microcopy: add concise titles
+  try{
+    els.routeSelect.title = 'Select a route';
+    els.busSelect.title = 'Select a bus';
+    els.btnLocate.title = 'Locate me and show nearest stop';
+    els.btnEmergency.title = 'Open emergency alert form';
+    els.trafficToggle.title = 'Toggle traffic congestion overlay';
+    els.altRouteToggle.title = 'Toggle alternate route overlay';
+    // ARIA labels for screen readers
+    els.routeSelect.setAttribute('aria-label', 'Select route');
+    els.busSelect.setAttribute('aria-label', 'Select bus');
+    els.btnLocate.setAttribute('aria-label', 'Locate me');
+    els.btnEmergency.setAttribute('aria-label', 'Open emergency form');
+    els.trafficToggle.setAttribute('aria-label', 'Traffic overlay');
+    els.altRouteToggle.setAttribute('aria-label', 'Alternate route overlay');
+  }catch{}
   els.btnLocate.addEventListener('click', locateMe);
   els.btnEmergency.addEventListener('click', () => els.emergencyModal.showModal());
   els.btnCloseModal.addEventListener('click', () => els.emergencyModal.close());
   els.emergencyForm.addEventListener('submit', sendEmergency);
+  // Geofence checks periodically
+  setInterval(checkGeofence, 2000);
 
   if(!state.liveMode){
     tick();
@@ -187,9 +260,11 @@ function onBusChange(){
       if(state.lastPositions.length > 5) state.lastPositions.shift();
       const accelFactor = computeAccelerationFactor(state.lastPositions);
 
-      // Throttle marker update to 1/sec
-      if(!markerThrottler) markerThrottler = new MarkerThrottler(1000);
-      markerThrottler.updateMarker(state.bus.id, lat, lng, busMarker);
+      // Rate limit + throttle updates
+      if(RateLimiter.allow(state.bus.id)){
+        if(!markerThrottler) markerThrottler = new MarkerThrottler(1000);
+        markerThrottler.updateMarker(state.bus.id, lat, lng, busMarker);
+      }
       
       els.infoSpeed.textContent = spd.toFixed ? spd.toFixed(0) : spd;
       els.infoLastUpdate.textContent = new Date().toLocaleTimeString();
@@ -259,6 +334,9 @@ function onTrafficToggle(){
       trafficLayer.addLayer(poly);
     });
     trafficLayer.addTo(map);
+    try{ UI.toast && UI.toast('Traffic layer enabled', 'info'); }catch{}
+  } else {
+    try{ UI.toast && UI.toast('Traffic layer disabled', 'info'); }catch{}
   }
 }
 
@@ -266,13 +344,16 @@ function onAltRouteToggle(){
   if(altRoutePolyline){ map.removeLayer(altRoutePolyline); altRoutePolyline = null; }
   if(els.altRouteToggle.checked && state.route.altPath){
     altRoutePolyline = L.polyline(state.route.altPath, { color:'#f59e0b', weight:4, dashArray:'6 6' }).addTo(map);
+    try{ UI.toast && UI.toast('Alternate route shown', 'info'); }catch{}
+  } else {
+    try{ UI.toast && UI.toast('Alternate route hidden', 'info'); }catch{}
   }
 }
 
 function ensureBusMarker(){
   const icon = L.divIcon({
     className: 'bus-icon',
-    html: '<div style="width:18px;height:18px;background:#3b82f6;border:2px solid white;border-radius:50%"></div>',
+    html: '<div style="width:18px;height:18px;background:#3b82f6;border:2px solid white;border-radius:50%;transition:transform .5s ease"></div>',
     iconSize: [18,18],
     iconAnchor: [9,9]
   });
@@ -295,6 +376,12 @@ function drawRoutes(){
   }
   if(path && path.length > 1){
     routePolyline = L.polyline(path, { color:'#22c55e', weight:5 }).addTo(map);
+    try {
+      const len = pathLength(path);
+      routePolyline.setStyle({ dashArray: `${Math.max(10, len/10)} ${Math.max(10, len/10)}`, dashOffset: len });
+      let off = len;
+      const anim = setInterval(()=>{ off -= len/40; routePolyline.setStyle({ dashOffset: Math.max(0, off) }); if(off<=0) clearInterval(anim); }, 16);
+    } catch{}
   }
   onTrafficToggle();
   onAltRouteToggle();
@@ -319,6 +406,8 @@ function renderDriverInfo(){
 
 function renderStops(){
   const stops = state.route.stops || [];
+  // Skeleton while rendering
+  try{ els.stopsList.innerHTML = '<div class="skeleton" style="height:24px"></div><div class="skeleton" style="height:24px;margin-top:6px"></div><div class="skeleton" style="height:24px;margin-top:6px"></div>'; }catch{}
   
   // Use virtual scrolling for large lists (50+ items)
   if(stops.length > 50 && window.VirtualScroll){
@@ -374,9 +463,11 @@ function onBusMultiChange(){
       if(!row) return;
       const lat = row.lat, lng = row.lng;
       
-      // Throttle multi-bus marker updates
-      if(!markerThrottler) markerThrottler = new MarkerThrottler(1000);
-      markerThrottler.updateMarker(id, lat, lng, busMarkers[id]);
+      // Rate limit + throttle multi-bus marker updates
+      if(RateLimiter.allow(id)){
+        if(!markerThrottler) markerThrottler = new MarkerThrottler(1000);
+        markerThrottler.updateMarker(id, lat, lng, busMarkers[id]);
+      }
       
       busLastSeen[id] = new Date();
       updateBusLegend(checked);
@@ -436,6 +527,7 @@ function tick(){
 
   const pos = getPointOnRoute(state.t);
   if(busMarker){ busMarker.setLatLng(pos); }
+  try { if(busMarker && busMarker._icon){ busMarker._icon.style.transform = 'scale(1.05)'; setTimeout(()=>{ if(busMarker&&busMarker._icon) busMarker._icon.style.transform='scale(1)'; }, 500); } } catch{}
 
   // Update info bar
   els.infoSpeed.textContent = speedKmh.toFixed(0);
@@ -443,6 +535,7 @@ function tick(){
 
   // Update ETAs
   updateEtas(speedMs);
+  checkGeofence();
 }
 
 function updateEtas(speedMs){
@@ -475,6 +568,7 @@ function updateEtas(speedMs){
     const el = document.getElementById(`eta-${idx}`);
     if(isFinite(etaSec)){
       el.textContent = formatDuration(etaSec);
+      if(etaSec < 10 && 'vibrate' in navigator){ try{ navigator.vibrate(30); }catch{} }
     } else {
       el.textContent = '–';
     }
@@ -543,6 +637,7 @@ function locateMe(){
     els.userEta.innerHTML = `ETA to nearest stop (<strong>${nearest.name}</strong>): <strong>${eta}</strong>`;
 
     map.setView([latitude, longitude], 14);
+    updateGeofence();
   }, () => toast('Unable to get your location'));
 }
 
@@ -661,3 +756,41 @@ function computeAccelerationFactor(points){
   const factor = 1 + Math.max(-0.15, Math.min(0.15, accel * 0.02));
   return factor;
 }
+
+// Battery saver: reduce polling interval when battery < 20%
+(function(){
+  if(navigator.getBattery){
+    navigator.getBattery().then(b => {
+      const adjust = () => {
+        if(!state.liveMode){
+          clearInterval(state.timer);
+          const interval = (b.level < 0.2) ? 5000 : 1000;
+          state.timer = setInterval(tick, interval);
+        }
+      };
+      b.addEventListener('levelchange', adjust);
+      adjust();
+    }).catch(()=>{});
+  }
+})();
+
+// Offline queue for position updates (demo)
+const OfflineQueue = (function(){
+  const KEY = 'offline.positions.queue';
+  function enqueue(update){
+    try{ const q = JSON.parse(localStorage.getItem(KEY) || '[]'); q.push(update); localStorage.setItem(KEY, JSON.stringify(q)); }catch{}
+  }
+  async function flush(){
+    try{
+      const q = JSON.parse(localStorage.getItem(KEY) || '[]');
+      if(q.length === 0) return;
+      if(window.SB && typeof SB.bulkUpsertPositions === 'function'){
+        await SB.bulkUpsertPositions(q);
+        localStorage.removeItem(KEY);
+        toast('Synced offline updates');
+      }
+    }catch(e){ /* keep queue */ }
+  }
+  return { enqueue, flush };
+})();
+window.addEventListener('online', () => OfflineQueue.flush());

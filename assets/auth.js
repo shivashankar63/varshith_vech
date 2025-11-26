@@ -8,12 +8,42 @@ const Auth = (() => {
   const hasSupabase = () => !!(window.SB && window.SB.client);
 
   function saveSession(data){
-    localStorage.setItem(KEY, JSON.stringify({ ...data, ts: Date.now() }));
+    const now = Date.now();
+    const accessTtlMs = 10 * 60 * 1000; // 10 minutes
+    const refreshTtlMs = 24 * 60 * 60 * 1000; // 24 hours
+    const session = {
+      ...data,
+      ts: now,
+      accessExp: now + accessTtlMs,
+      refreshExp: now + refreshTtlMs
+    };
+    localStorage.setItem(KEY, JSON.stringify(session));
   }
   function getSession(){
     try{ return JSON.parse(localStorage.getItem(KEY) || 'null'); }catch{ return null }
   }
   function clear(){ localStorage.removeItem(KEY); }
+  function isAccessExpired(s){ return !s || Date.now() >= s.accessExp; }
+  function isRefreshExpired(s){ return !s || Date.now() >= s.refreshExp; }
+  async function refreshTokenIfNeeded(){
+    let s = getSession();
+    if(!s) return null;
+    if(isRefreshExpired(s)){ clear(); return null; }
+    if(isAccessExpired(s)){
+      try{
+        if(hasSupabase()){
+          const { data, error } = await SB.client.auth.refreshSession();
+          if(error) throw error;
+          const user = data?.user;
+          saveSession({ ...s, userId: s.userId, email: s.email, role: s.role });
+        } else {
+          // Static demo: extend access window
+          saveSession({ ...s });
+        }
+      } catch(err){ console.warn('Token refresh failed', err); clear(); return null; }
+    }
+    return getSession();
+  }
 
   function getUsers(){
     try{ return JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); }catch{ return [] }
@@ -195,5 +225,63 @@ const Auth = (() => {
     return s;
   }
 
-  return { bindUserLogin, bindDriverLogin, bindUserSignup, bindDriverSignup, getSession, clear, requireRole };
+  // Inactivity/Session timeout (30 min) with countdown modal
+  const SESSION_IDLE_MS = 30 * 60 * 1000;
+  let idleTimer = null; let warningTimer = null;
+  function resetIdle(){
+    if(idleTimer) clearTimeout(idleTimer);
+    if(warningTimer) clearInterval(warningTimer);
+    idleTimer = setTimeout(() => showTimeoutWarning(), SESSION_IDLE_MS - 60 * 1000); // warn at T-60s
+  }
+  function showTimeoutWarning(){
+    let remaining = 60;
+    let modal = document.getElementById('sessionTimeoutModal');
+    if(!modal){
+      modal = document.createElement('div');
+      modal.id = 'sessionTimeoutModal';
+      modal.style.position = 'fixed'; modal.style.inset = '0'; modal.style.background = 'rgba(0,0,0,0.6)'; modal.style.display = 'flex'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center';
+      modal.innerHTML = `<div style="background:#111827;border:1px solid #374151;border-radius:8px;padding:16px;max-width:360px;text-align:center">
+        <h3>Session Timeout</h3>
+        <p>You will be logged out in <span id="timeoutCountdown">60</span>s due to inactivity.</p>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button id="stayLoggedInBtn">Stay Logged In</button>
+          <button id="logoutNowBtn" class="primary">Logout</button>
+        </div>
+      </div>`;
+      document.body.appendChild(modal);
+      document.getElementById('stayLoggedInBtn').onclick = () => { modal.remove(); saveSession({ ...getSession() }); resetIdle(); };
+      document.getElementById('logoutNowBtn').onclick = () => { modal.remove(); clear(); location.href = '../auth/login-user.html'; };
+    } else { modal.style.display = 'flex'; }
+    const countdownEl = document.getElementById('timeoutCountdown');
+    warningTimer = setInterval(() => {
+      remaining -= 1;
+      if(countdownEl) countdownEl.textContent = String(remaining);
+      if(remaining <= 0){ clearInterval(warningTimer); modal.remove(); clear(); location.href = '../auth/login-user.html'; }
+    }, 1000);
+  }
+  function bindIdleTracking(){
+    ['click','keydown','mousemove','scroll','touchstart'].forEach(evt => document.addEventListener(evt, resetIdle));
+    resetIdle();
+  }
+
+  // HTTPS-only enforcement (client-side)
+  function enforceHttps(){
+    try{
+      const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      if(!isLocal && location.protocol !== 'https:'){
+        location.href = 'https://' + location.host + location.pathname + location.search;
+      }
+    } catch{}
+  }
+
+  // Cookie helper with Secure & SameSite
+  function setSecureCookie(name, value, days=1){
+    const exp = new Date(Date.now() + days*24*60*60*1000).toUTCString();
+    const isHttps = location.protocol === 'https:';
+    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${exp}; path=/; SameSite=Strict${isHttps?'; Secure':''}`;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => { enforceHttps(); bindIdleTracking(); refreshTokenIfNeeded(); });
+
+  return { bindUserLogin, bindDriverLogin, bindUserSignup, bindDriverSignup, getSession, clear, requireRole, refreshTokenIfNeeded, setSecureCookie };
 })();

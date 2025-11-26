@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard – Smart Bus Tracking</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+  <link rel="stylesheet" href="../assets/admin.css" />
+  <link rel="icon" href="../assets/icon.png" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body class="app dark">
+  <header class="app-header">
+    <h1>Admin Dashboard</h1>
+    <nav class="app-nav">
+      <a href="../index.html">Home</a>
+      <a href="../auth/login-user.html">User Login</a>
+      <a href="../auth/login-driver.html">Driver Login</a>
+    </nav>
+  </header>
+
+  <main class="admin-grid">
+    <!-- Fleet Overview -->
+    <section class="card">
+      <h2>Fleet Overview</h2>
+      <div class="toolbar">
+        <label>
+          Route:
+          <select id="fleetRouteSelect" aria-label="Filter by route" title="Filter by route"></select>
+        </label>
+        <label>
+          Status:
+          <select id="fleetStatusFilter" aria-label="Filter by status" title="Filter by status">
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="idle">Idle</option>
+            <option value="breakdown">Breakdown</option>
+          </select>
+        </label>
+      </div>
+      <div id="fleetGrid" class="grid"></div>
+    </section>
+
+    <!-- Analytics -->
+    <section class="card">
+      <h2>Analytics</h2>
+      <div class="charts">
+        <canvas id="chartTrips" height="120"></canvas>
+        <canvas id="chartSpeed" height="120"></canvas>
+        <canvas id="chartDelays" height="120"></canvas>
+        <canvas id="chartPassengers" height="120"></canvas>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="exportTripsBtn" aria-label="Export trips as CSV" title="Export trips as CSV">Export Trips CSV</button>
+        <button id="exportPositionsBtn" aria-label="Export positions as CSV" title="Export positions as CSV">Export Positions CSV</button>
+        <button id="exportAlertsBtn" aria-label="Export alerts as CSV" title="Export alerts as CSV">Export Alerts CSV</button>
+        <button id="sendWeeklyDelayReport" aria-label="Send weekly delay report" title="Send weekly delay report">Send Weekly Delay Report (demo)</button>
+      </div>
+    </section>
+
+    <!-- Alert Management -->
+    <section class="card">
+      <h2>Alert Management</h2>
+      <div id="alertsList" class="list"></div>
+      <div class="broadcast">
+        <h3>Broadcast Message to Drivers</h3>
+        <div class="row">
+          <input id="broadcastText" type="text" placeholder="Message" aria-label="Broadcast message" title="Broadcast message" />
+          <button id="broadcastBtn" aria-label="Send broadcast" title="Send broadcast">Send</button>
+        </div>
+        <div id="broadcastToast" class="toast" hidden>Broadcast sent.</div>
+      </div>
+    </section>
+
+    <!-- Route Editor -->
+    <section class="card">
+      <h2>Route Editor</h2>
+      <div class="toolbar">
+        <label>
+          Route:
+          <select id="editorRouteSelect" aria-label="Select route to edit" title="Select route to edit"></select>
+        </label>
+        <button id="addStopBtn" aria-label="Add stop at map center" title="Add stop at map center">Add Stop</button>
+        <button id="addCongestionBtn" aria-label="Add congestion zone" title="Add congestion zone">Add Congestion Zone</button>
+        <button id="toggleAltPathBtn" aria-label="Toggle alternate path" title="Toggle alternate path">Toggle Alt Path</button>
+        <button id="saveRouteBtn" class="primary" aria-label="Save route changes" title="Save route changes">Save Changes</button>
+      </div>
+      <div id="routeMap" class="map"></div>
+      <div class="row" style="margin-top:8px">
+        <button id="showHeatmapBtn" aria-label="Toggle passenger heatmap" title="Toggle passenger heatmap">Show Passenger Heatmap</button>
+        <button id="suggestAltBtn" aria-label="Suggest alternate routes" title="Suggest alternate routes">Suggest Alt Routes</button>
+      </div>
+    </section>
+
+    <!-- Driver Assignments -->
+    <section class="card">
+      <h2>Driver Assignments</h2>
+      <div class="row">
+        <label>
+          Bus:
+          <select id="assignBusSelect" aria-label="Select bus" title="Select bus"></select>
+        </label>
+        <label>
+          Driver:
+          <select id="assignDriverSelect" aria-label="Select driver" title="Select driver"></select>
+        </label>
+        <label>
+          Route:
+          <select id="assignRouteSelect" aria-label="Select route" title="Select route"></select>
+        </label>
+        <label>
+          Shift:
+          <input id="assignShift" type="text" placeholder="08:00-16:00" aria-label="Shift time" title="Shift time" />
+        </label>
+        <button id="assignBtn" class="primary" aria-label="Assign driver to bus" title="Assign driver to bus">Assign</button>
+      </div>
+      <div id="assignmentsList" class="list"></div>
+    </section>
+  </main>
+
+  <script src="../assets/auth.js"></script>
+  <script>
+    // Require admin role if available in this demo; fallback allows access.
+    try { Auth.requireRole && Auth.requireRole('admin'); } catch (_) {}
+  </script>
+  <script src="../assets/analytics.js"></script>
+  <script src="../assets/scheduler.js"></script>
+  <script src="../assets/admin.js"></script>
+</body>
+</html>

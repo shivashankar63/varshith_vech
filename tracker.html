@@ -9,6 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="stylesheet" href="assets/styles.css" />
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#3b82f6" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <style>
     /* Visual tweaks to reduce map dominance */
     .map{height:450px;min-height:360px;border-radius:12px;overflow:hidden}
@@ -26,7 +29,7 @@
   <script src="assets/supabaseClient.js"></script>
 </head>
 <body>
-  <header class="app-header">
+  <header class="app-header" role="banner">
     <div class="brand">
       <img src="assets/images/bus.svg" alt="Bus" class="brand-icon" />
       <h1>Smart Bus Tracking</h1>
@@ -35,36 +38,37 @@
       <a href="auth/login-user.html" class="btn">User Login</a>
       <a href="auth/login-driver.html" class="btn">Driver Login</a>
       <button id="btnEmergency" class="btn btn-danger">Emergency</button>
+      <button id="themeToggle" class="btn" aria-label="Toggle theme">Toggle Theme</button>
     </div>
   </header>
 
-  <main class="layout">
-    <aside class="sidebar">
+  <main class="layout" role="main">
+    <aside class="sidebar" role="complementary" aria-label="Controls sidebar">
       <section class="card">
         <h2>Choose Route</h2>
         <div class="field">
           <label for="routeSelect">Route</label>
-          <select id="routeSelect"></select>
+          <select id="routeSelect" aria-label="Select route"></select>
         </div>
         <div class="field">
           <label for="busSelect">Bus</label>
-          <select id="busSelect"></select>
+          <select id="busSelect" aria-label="Select bus" disabled></select>
         </div>
         <div class="field">
           <label>Buses (multi)</label>
-          <div id="busMulti" style="display:flex;flex-direction:column;gap:6px"></div>
+          <div id="busMulti" style="display:flex;flex-direction:column;gap:6px" role="group" aria-label="Select multiple buses"></div>
         </div>
         <div class="field">
           <label>Bus Legend</label>
-          <div id="busLegend" style="font-size:12px;color:var(--muted)">No buses selected</div>
+          <div id="busLegend" style="font-size:12px;color:var(--muted)" aria-live="polite">No buses selected</div>
         </div>
         <div class="toggles">
           <label class="toggle">
-            <input type="checkbox" id="trafficToggle" />
+            <input type="checkbox" id="trafficToggle" disabled />
             <span>Show Traffic</span>
           </label>
           <label class="toggle">
-            <input type="checkbox" id="altRouteToggle" />
+            <input type="checkbox" id="altRouteToggle" disabled />
             <span>Suggest Alternate Route</span>
           </label>
         </div>
@@ -80,7 +84,11 @@
 
       <section class="card">
         <h2>Stops & ETA</h2>
-        <div id="stopsList" class="stops"></div>
+        <div id="stopsList" class="stops" aria-live="polite">
+          <div class="skeleton" style="height:20px;margin:6px 0"></div>
+          <div class="skeleton" style="height:20px;margin:6px 0"></div>
+          <div class="skeleton" style="height:20px;margin:6px 0"></div>
+        </div>
       </section>
 
       <section class="card">
@@ -97,8 +105,8 @@
       </footer>
     </aside>
 
-    <section class="map-wrap">
-      <div id="map" class="map"></div>
+    <section class="map-wrap" aria-label="Map and information" role="region">
+      <div id="map" class="map" role="img" aria-label="Live bus map"></div>
       <div class="card-inline">
           <div id="busInfoBar" class="bus-bar" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
           <div class="bar-section">
@@ -182,6 +190,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="assets/app.js"></script>
+  <script src="assets/pwa.js"></script>
   <script>
     // Register service worker
     if ('serviceWorker' in navigator) {
@@ -189,6 +198,14 @@
         console.log('[SW] Registered:', reg.scope);
       }).catch(err => console.warn('[SW] Registration failed:', err));
     }
+    // Theme toggle persistence
+    (function(){
+      const root = document.documentElement;
+      const saved = localStorage.getItem('theme') || 'dark';
+      if(saved === 'light') root.classList.add('light');
+      const btn = document.getElementById('themeToggle');
+      if(btn){ btn.addEventListener('click', () => { const isLight = root.classList.toggle('light'); localStorage.setItem('theme', isLight?'light':'dark'); }); }
+    })();
   </script>
 </body>
 </html>
