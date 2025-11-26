@@ -74,6 +74,30 @@ create policy "admin resolve" on alerts for update using (
   exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin')
 );
 
+-- Auto-create profile from user metadata on signup
+-- This trigger creates a profile row automatically when a user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, phone, role, updated_at)
+  VALUES (
+    new.id,
+    COALESCE(new.raw_user_meta_data->>'full_name', ''),
+    COALESCE(new.raw_user_meta_data->>'phone', ''),
+    COALESCE(new.raw_user_meta_data->>'role', 'user'),
+    now()
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to call the function on user creation
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- Rate limiting on inserts can be supplemented via Postgres triggers/functions.
 -- Example: limit positions to 60/min per bus using a trigger.
 -- (Pseudo-implementation, adapt to your schema)

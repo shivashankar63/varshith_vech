@@ -97,13 +97,14 @@ const Auth = (() => {
             const { data, error } = await SB.client.auth.signUp({ 
               email, 
               password,
-              options: { emailRedirectTo: window.location.origin }
+              options: { 
+                emailRedirectTo: window.location.origin,
+                data: { full_name: fullName, phone, role: 'user', user_type: userType, user_id: userId }
+              }
             });
             if(error) throw error;
-            await SB.upsertProfile({ full_name: fullName, phone, role: 'user' });
-            // Store userId in session for later use
             saveSession({ role: 'user', userType, userId, email, fullName, phone });
-            alert('Account created successfully! Please login.');
+            alert('Account created successfully! You can now login.');
             location.href = 'login-user.html';
           } catch(err){ alert('Signup failed: ' + (err.message || err)); }
         })();
@@ -137,13 +138,14 @@ const Auth = (() => {
             const { data, error } = await SB.client.auth.signUp({ 
               email: loginEmail, 
               password,
-              options: { emailRedirectTo: window.location.origin }
+              options: { 
+                emailRedirectTo: window.location.origin,
+                data: { full_name: fullName, phone, role: 'driver', driver_id: driverId, bus_id: busId }
+              }
             });
             if(error) throw error;
-            await SB.upsertProfile({ full_name: fullName, phone, role: 'driver' });
-            // Store driver details in session for later use
             saveSession({ role: 'driver', busId, phone, driverId, fullName, email });
-            alert('Account created successfully! Please login.');
+            alert('Account created successfully! You can now login.');
             location.href = 'login-driver.html';
           } catch(err){ alert('Signup failed: ' + (err.message || err)); }
         })();
