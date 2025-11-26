@@ -5,13 +5,25 @@
 -- Example tables: profiles, buses, drivers, positions, alerts, assignments
 
 -- Profiles table: users and drivers
+-- Disable RLS temporarily or use service role for profile operations
 alter table profiles enable row level security;
-create policy "read own profile" on profiles for select
-  using (auth.uid() = id);
-create policy "insert own profile" on profiles for insert
+
+-- Allow authenticated users to read any profile (for display purposes)
+create policy "authenticated users read profiles" on profiles for select
+  to authenticated
+  using (true);
+
+-- Only the trigger can insert (using SECURITY DEFINER)
+-- Users cannot directly insert
+create policy "service role insert profiles" on profiles for insert
+  to service_role
+  with check (true);
+
+-- Users can update their own profile
+create policy "users update own profile" on profiles for update
+  to authenticated
+  using (auth.uid() = id)
   with check (auth.uid() = id);
-create policy "update own profile" on profiles for update
-  using (auth.uid() = id);
 
 -- Buses table: general read, restrict updates to admins
 alter table buses enable row level security;
@@ -76,21 +88,27 @@ create policy "admin resolve" on alerts for update using (
 
 -- Auto-create profile from user metadata on signup
 -- This trigger creates a profile row automatically when a user signs up
+-- SECURITY DEFINER allows it to bypass RLS policies
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name, phone, role, updated_at)
+  INSERT INTO public.profiles (id, full_name, phone, role, created_at, updated_at)
   VALUES (
     new.id,
     COALESCE(new.raw_user_meta_data->>'full_name', ''),
     COALESCE(new.raw_user_meta_data->>'phone', ''),
     COALESCE(new.raw_user_meta_data->>'role', 'user'),
+    now(),
     now()
   )
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    phone = EXCLUDED.phone,
+    role = EXCLUDED.role,
+    updated_at = now();
   RETURN new;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Trigger to call the function on user creation
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;

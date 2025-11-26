@@ -46,12 +46,23 @@
 		if(error) throw error; return data;
 	};
 
-	// Profile helpers for auth
+  // Profile helpers for auth
 	SB.getProfile = async () => {
 		const { data: { user } } = await client.auth.getUser();
 		if(!user) return null;
-		const { data, error } = await client.from('profiles').select('*').eq('id', user.id).single();
-		if(error && error.code !== 'PGRST116') throw error;
+		// First try to get from profiles table
+		const { data, error } = await client.from('profiles').select('*').eq('id', user.id).maybeSingle();
+		// If profile doesn't exist yet or error, return metadata
+		if(error || !data) {
+			return {
+				id: user.id,
+				full_name: user.user_metadata?.full_name || '',
+				phone: user.user_metadata?.phone || '',
+				role: user.user_metadata?.role || 'user',
+				driver_id: user.user_metadata?.driver_id || '',
+				bus_id: user.user_metadata?.bus_id || ''
+			};
+		}
 		return data;
 	};
 	SB.upsertProfile = async (profile) => {
